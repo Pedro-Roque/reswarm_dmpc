@@ -24,7 +24,7 @@ ctl = MPC(model=pendulum,
           dynamics=pendulum.discrete_time_dynamics, 
           Q = Q , R = R, P = P_LQR,
           horizon=3,
-          ulb=-5, uub=5, 
+          ulb=-20, uub=20, 
           xlb=[-np.pi/2, -np.pi/2], 
           xub=[np.pi/2, np.pi/2])
 

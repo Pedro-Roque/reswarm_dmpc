@@ -158,13 +158,10 @@ class MPC(object):
         con_eq_lb = np.zeros((num_eq_con,1))
         con_eq_ub = np.zeros((num_eq_con,1))
 
-        # Set constraints - 
-        # TODO need to make sure this is good
-        con_eq.extend(con_ineq)
-        con = ca.vertcat(con_eq[0])
-     
-        self.con_lb = np.array([con_eq_lb,con_ineq_lb])
-        self.con_ub = np.array([con_eq_ub,con_ineq_ub])
+        # Set constraints 
+        con = ca.vertcat(*(con_eq+con_ineq))
+        self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
+        self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
 
         # Build NLP Solver (can also solve QP)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
