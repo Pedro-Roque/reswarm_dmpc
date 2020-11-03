@@ -14,15 +14,15 @@ import casadi.tools as ctools
 
 from scipy.stats import norm
 import scipy.linalg
- 
 
-class MPC(object):
+
+class DMPC(object):
 
     def __init__(self, model, dynamics,
                  horizon=10, Q=None, P=None, R=None,
-                 ulb=None, uub=None, xlb=None, xub=None, terminal_constraint=None,
-                 solver_opts=None
-                ):
+                 ulb=None, uub=None, xlb=None, xub=None,
+                 terminal_constraint=None,
+                 solver_opts=None):
 
         """ Initialize and build the MPC solver
         # Arguments:
@@ -39,23 +39,22 @@ class MPC(object):
             terminal_constraint: Terminal condition on the state
                     * if None: No terminal constraint is used
                     * if zero: Terminal state is equal to zero
-                    * if nonzero: Terminal state is bounded within +/- the constraint
+                    * if nonzero: Terminal state is bounded within +/- the
+                                  constraint
             solver_opts: Additional options to pass to the NLP solver
                     e.g.: solver_opts['print_time'] = False
                           solver_opts['ipopt.tol'] = 1e-8
         """
 
-
         build_solver_time = -time.time()
         self.dt = model.dt
         self.Nx, self.Nu = len(model.x_eq), 1
-        self.Nt = int(horizon /self.dt)
+        self.Nt = int(horizon / self.dt)
         self.dynamics = dynamics
 
         # Initialize variables
         self.set_cost_functions()
         self.x_sp = None
-
 
         # Cost function weights
         if P is None:
@@ -78,13 +77,11 @@ class MPC(object):
         if ulb is None:
             ulb = np.full((self.Nu), -np.inf)
 
-
         # Starting state parameters - add slack here
-        x0       = ca.MX.sym('x0', self.Nx)
-        x0_ref   = ca.MX.sym('x0_ref', self.Nx)
-        u0       = ca.MX.sym('u0', self.Nu)
-        param_s  = ca.vertcat(x0, x0_ref, u0)
-
+        x0 = ca.MX.sym('x0', self.Nx)
+        x0_ref = ca.MX.sym('x0_ref', self.Nx)
+        u0 = ca.MX.sym('u0', self.Nu)
+        param_s = ca.vertcat(x0, x0_ref, u0)
 
         # Create optimization variables
         opt_var = ctools.struct_symMX([(
@@ -94,13 +91,11 @@ class MPC(object):
         self.opt_var = opt_var
         self.num_var = opt_var.size
 
-
         # Decision variable boundries
         self.optvar_lb = opt_var(-np.inf)
         self.optvar_ub = opt_var(np.inf)
 
-
-        """ Set initial values """
+        # Set initial values
         obj = ca.MX(0)
         con_eq = []
         con_ineq = []
@@ -110,14 +105,13 @@ class MPC(object):
 
         # Generate MPC Problem
         for t in range(self.Nt):
-            
             # Get variables
             x_t = opt_var['x', t]
             u_t = opt_var['u', t]
 
             # Dynamics constraint
             x_t_next = self.dynamics(x_t, u_t)
-            con_eq.append(x_t_next - opt_var['x',t+1])
+            con_eq.append(x_t_next - opt_var['x', t+1])
 
             # Input constraints
             if uub is not None:
@@ -140,7 +134,7 @@ class MPC(object):
                 con_ineq_lb.append(xlb)
 
             # Objective Function / Cost Function
-            obj += self.running_cost( (x_t - x0_ref), self.Q, u_t, self.R)
+            obj += self.running_cost((x_t - x0_ref), self.Q, u_t, self.R)
 
         # Terminal Cost
         obj += self.terminal_cost(opt_var['x', self.Nt] - x0_ref, self.P)
@@ -151,14 +145,14 @@ class MPC(object):
             con_ineq_lb.append(np.full((self.Nx,), -terminal_constraint))
             con_ineq_ub.append(np.full((self.Nx,), terminal_constraint))
 
-        # Equality constraints bounds are 0 (they are equality constraints), 
+        # Equality constraints bounds are 0 (they are equality constraints),
         # -> Refer to CasADi documentation
         num_eq_con = ca.vertcat(*con_eq).size1()
         num_ineq_con = ca.vertcat(*con_ineq).size1()
-        con_eq_lb = np.zeros((num_eq_con,1))
-        con_eq_ub = np.zeros((num_eq_con,1))
+        con_eq_lb = np.zeros((num_eq_con, 1))
+        con_eq_ub = np.zeros((num_eq_con, 1))
 
-        # Set constraints 
+        # Set constraints
         con = ca.vertcat(*(con_eq+con_ineq))
         self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
         self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
@@ -166,23 +160,38 @@ class MPC(object):
         # Build NLP Solver (can also solve QP)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
         options = {
-            'ipopt.print_level' : 0,
-            'ipopt.mu_init' : 0.01,
-            'ipopt.tol' : 1e-8,
-            'ipopt.warm_start_init_point' : 'yes',
-            'ipopt.warm_start_bound_push' : 1e-9,
-            'ipopt.warm_start_bound_frac' : 1e-9,
-            'ipopt.warm_start_slack_bound_frac' : 1e-9,
-            'ipopt.warm_start_slack_bound_push' : 1e-9,
-            'ipopt.warm_start_mult_bound_push' : 1e-9,
-            'ipopt.mu_strategy' : 'adaptive',
-            'print_time' : False,
-            'verbose' : False,
-            'expand' : False
+            'ipopt.max_iter': 20,
+            'ipopt.print_level': 0,
+            'ipopt.mu_init': 0.01,
+            'ipopt.tol': 1e-4,
+            'ipopt.warm_start_init_point': 'yes',
+            'ipopt.warm_start_bound_push': 1e-4,
+            'ipopt.warm_start_bound_frac': 1e-4,
+            'ipopt.warm_start_slack_bound_frac': 1e-4,
+            'ipopt.warm_start_slack_bound_push': 1e-4,
+            'ipopt.warm_start_mult_bound_push': 1e-4,
+            # 'ipopt.mu_strategy' : 'adaptive',
+            'print_time': False,
+            'verbose': False,
+            'expand': True
+        }
+        # SCPGEN
+        qp_opts = {
+                    'printLevel': 'tabular',
+                    'CPUtime': 0.0001
+                  }
+        options = {
+            'qpsol': 'qpoases',
+            'codegen': True,
+            'print_header': False,
+            'print_time': False,
+            'print_in': False,
+            'print_out': False,
+            'qpsol_options': qp_opts
         }
         if solver_opts is not None:
             options.update(solver_opts)
-        self.solver = ca.nlpsol('mpc_solver', 'ipopt', nlp, options)
+        self.solver = ca.nlpsol('mpc_solver', 'scpgen', nlp, options)
 
         build_solver_time += time.time()
         print('\n________________________________________')
@@ -194,21 +203,21 @@ class MPC(object):
         pass
 
     def set_cost_functions(self):
-        
+
         # Create functions and function variables for calculating the cost
         Q = ca.MX.sym('Q', self.Nx, self.Nx)
         R = ca.MX.sym('R', self.Nu)
         P = ca.MX.sym('P', self.Nx, self.Nx)
-        
+
         x = ca.MX.sym('x', self.Nx)
         u = ca.MX.sym('q', self.Nu)
 
-        self.running_cost = ca.Function('Jstage', [x, Q, u, R], \
-                                      [ca.mtimes(u.T, ca.mtimes(R,  u)) + \
-                                       ca.mtimes(x.T, ca.mtimes(Q,  x)) ] )
+        self.running_cost = ca.Function('Jstage', [x, Q, u, R],
+                                        [ca.mtimes(u.T, ca.mtimes(R, u))
+                                         + ca.mtimes(x.T, ca.mtimes(Q, x))])
 
-        self.terminal_cost = ca.Function('Jtogo', [x, P], \
-                                  [ca.mtimes(x.T, ca.mtimes(P,  x))] )
+        self.terminal_cost = ca.Function('Jtogo', [x, P],
+                                         [ca.mtimes(x.T, ca.mtimes(P, x))])
 
     def solve_mpc(self, x0, u0=None):
         """ Solve the optimal control problem
@@ -233,9 +242,8 @@ class MPC(object):
         if self.x_sp is None:
             self.x_sp = np.zeros(self.Nx)
 
-
         # Initialize variables
-        self.optvar_x0          = np.full((1, self.Nx), x0.T)
+        self.optvar_x0 = np.full((1, self.Nx), x0.T)
 
         # Initial guess of the warm start variables
         self.optvar_init = self.opt_var(0)
@@ -244,7 +252,7 @@ class MPC(object):
         print('\nSolving MPC with %d step horizon' % self.Nt)
         solve_time = -time.time()
 
-        param  = ca.vertcat(x0, self.x_sp, u0)
+        param = ca.vertcat(x0, self.x_sp, u0)
         args = dict(x0=self.optvar_init,
                     lbx=self.optvar_lb,
                     ubx=self.optvar_ub,
@@ -253,13 +261,14 @@ class MPC(object):
                     p=param)
 
         # Solve NLP - TODO fix this
-        sol             = self.solver(**args)
-        status          = self.solver.stats()['return_status']
-        optvar          = self.opt_var(sol['x'])
+        sol = self.solver(**args)
+        # status = self.solver.stats()['return_status'] # IPOPT
+        status = self.solver.stats()['success']  # SCPGEN
+        optvar = self.opt_var(sol['x'])
 
-        solve_time+=time.time()
+        solve_time += time.time()
         print ('\nSolver status: ', status)
-        print('MPC took %f seconds to solve.' %(solve_time))
+        print('MPC took %f seconds to solve.' % (solve_time))
         print('MPC cost: ', sol['f'])
 
         return optvar['x'], optvar['u']
@@ -272,7 +281,3 @@ class MPC(object):
 
     def set_reference(self, x_sp):
         self.x_sp = x_sp
-
-
-        
-
