@@ -19,50 +19,46 @@ import scipy.linalg
 class DMPC(object):
 
     def __init__(self, model, dynamics,
-                 horizon=10, Q=None, P=None, R=None,
+                 Q, P, R, horizon=10,
                  ulb=None, uub=None, xlb=None, xub=None,
-                 terminal_constraint=None,
-                 solver_opts=None):
+                 terminal_constraint=None):
+        """
+        MPC Controller Class
 
-        """ Initialize and build the MPC solver
-        # Arguments:
-            horizon: Prediction horizon in seconds
-            model: System model
-        # Optional Argumants:
-            Q: State penalty matrix, default=diag(1,...,1)
-            P: Termial penalty matrix, default=diag(1,...,1)
-            R: Input penalty matrix, default=diag(1,...,1)*0.01
-            ulb: Lower boundry input
-            uub: Upper boundry input
-            xlb: Lower boundry state
-            xub: Upper boundry state
-            terminal_constraint: Terminal condition on the state
-                    * if None: No terminal constraint is used
-                    * if zero: Terminal state is equal to zero
-                    * if nonzero: Terminal state is bounded within +/- the
-                                  constraint
-            solver_opts: Additional options to pass to the NLP solver
-                    e.g.: solver_opts['print_time'] = False
-                          solver_opts['ipopt.tol'] = 1e-8
+        :param model: model class
+        :type model: python class
+        :param dynamics: system dynamics function
+        :type dynamics: ca.Function
+        :param horizon: prediction horizon [s], defaults to 10
+        :type horizon: float, optional
+        :param Q: state error weight matrix
+        :type Q: np.diag
+        :param P: terminal state weight matrix
+        :type P: np.array
+        :param R: control input weight matrix
+        :type R: np.diag
+        :param ulb: control lower bound, defaults to None
+        :type ulb: np.array, optional
+        :param uub: control upper bound, defaults to None
+        :type uub: np.array, optional
+        :param xlb: state lower bound, defaults to None
+        :type xlb: np.array, optional
+        :param xub: state upper bound, defaults to None
+        :type xub: np.array, optional
+        :param terminal_constraint: terminal constraint set, defaults to None
+        :type terminal_constraint: np.array, optional
         """
 
         build_solver_time = -time.time()
         self.dt = model.dt
-        self.Nx, self.Nu = len(model.x_eq), 1
+        self.Nx, self.Nu = model.n, model.m, 1
         self.Nt = int(horizon / self.dt)
         self.dynamics = dynamics
 
         # Initialize variables
         self.set_cost_functions()
+        self.set_options_dicts()
         self.x_sp = None
-
-        # Cost function weights
-        if P is None:
-            P = np.eye(self.Nx) * 10
-        if Q is None:
-            Q = np.eye(self.Nx)
-        if R is None:
-            R = np.eye(self.Nu) * 0.01
 
         self.Q = ca.MX(Q)
         self.P = ca.MX(P)
@@ -156,42 +152,9 @@ class DMPC(object):
         con = ca.vertcat(*(con_eq+con_ineq))
         self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
         self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
-
-        # Build NLP Solver (can also solve QP)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
-        options = {
-            'ipopt.max_iter': 20,
-            'ipopt.print_level': 0,
-            'ipopt.mu_init': 0.01,
-            'ipopt.tol': 1e-4,
-            'ipopt.warm_start_init_point': 'yes',
-            'ipopt.warm_start_bound_push': 1e-4,
-            'ipopt.warm_start_bound_frac': 1e-4,
-            'ipopt.warm_start_slack_bound_frac': 1e-4,
-            'ipopt.warm_start_slack_bound_push': 1e-4,
-            'ipopt.warm_start_mult_bound_push': 1e-4,
-            # 'ipopt.mu_strategy' : 'adaptive',
-            'print_time': False,
-            'verbose': False,
-            'expand': True
-        }
-        # SCPGEN
-        qp_opts = {
-                    'printLevel': 'tabular',
-                    'CPUtime': 0.0001
-                  }
-        options = {
-            'qpsol': 'qpoases',
-            'codegen': True,
-            'print_header': False,
-            'print_time': False,
-            'print_in': False,
-            'print_out': False,
-            'qpsol_options': qp_opts
-        }
-        if solver_opts is not None:
-            options.update(solver_opts)
-        self.solver = ca.nlpsol('mpc_solver', 'scpgen', nlp, options)
+        self.solver = ca.nlpsol('mpc_solver', 'scpgen', nlp,
+                                self.sol_options_scpgen)
 
         build_solver_time += time.time()
         print('\n________________________________________')
@@ -202,6 +165,51 @@ class DMPC(object):
         print('----------------------------------------')
         pass
 
+    def set_options_dicts(self):
+        """
+        Helper function to set the dictionaries for solver and function options
+        """
+
+        # Functions options
+        self.fun_options = {
+            'jit': True
+        }
+
+        # Options for NLP Solvers
+        # -> IPOPT
+        self.sol_options_ipopt = {
+            'ipopt.max_iter': 20,
+            'ipopt.print_level': 0,
+            'ipopt.mu_init': 0.01,
+            'ipopt.tol': 1e-4,
+            'ipopt.warm_start_init_point': 'yes',
+            'ipopt.warm_start_bound_push': 1e-4,
+            'ipopt.warm_start_bound_frac': 1e-4,
+            'ipopt.warm_start_slack_bound_frac': 1e-4,
+            'ipopt.warm_start_slack_bound_push': 1e-4,
+            'ipopt.warm_start_mult_bound_push': 1e-4,
+            'print_time': False,
+            'verbose': False,
+            'expand': True
+        }
+
+        # -> SCPGEN
+        qp_opts = {
+                    'printLevel': 'tabular',
+                    'CPUtime': 0.0001
+                  }
+        self.sol_options_scpgen = {
+            'qpsol': 'qpoases',
+            'codegen': True,
+            'print_header': False,
+            'print_time': False,
+            'print_in': False,
+            'print_out': False,
+            'qpsol_options': qp_opts
+        }
+
+        return True
+
     def set_cost_functions(self):
 
         # Create functions and function variables for calculating the cost
@@ -210,30 +218,22 @@ class DMPC(object):
         P = ca.MX.sym('P', self.Nx, self.Nx)
 
         x = ca.MX.sym('x', self.Nx)
-        u = ca.MX.sym('q', self.Nu)
+        u = ca.MX.sym('u', self.Nu)
 
-        self.running_cost = ca.Function('Jstage', [x, Q, u, R],
-                                        [ca.mtimes(u.T, ca.mtimes(R, u))
-                                         + ca.mtimes(x.T, ca.mtimes(Q, x))])
+        # Prepare cost functions
 
-        self.terminal_cost = ca.Function('Jtogo', [x, P],
-                                         [ca.mtimes(x.T, ca.mtimes(P, x))])
+        return
 
     def solve_mpc(self, x0, u0=None):
-        """ Solve the optimal control problem
-        # Arguments:
-            x0: Initial state vector.
-            sim_time: Simulation length.
-        # Optional Arguments:
-            x_sp: State set point, default is zero.
-            u0: Initial input vector.
-            debug: If True, print debug information at each solve iteration.
-            noise: If True, add gaussian noise to the simulation.
-            con_par_func: Function to calculate the parameters to pass to the
-                          inequality function, inputs the current state.
-        # Returns:
-            mean: Simulated output using the optimal control inputs
-            u: Optimal control inputs
+        """
+        Solve the MPC problem
+
+        :param x0: state
+        :type x0: ca.DM
+        :param u0: initia guess for the control input, defaults to None
+        :type u0: ca.DM, optional
+        :return: predicted states and control inputs
+        :rtype: ca.DM ca.DM vectors
         """
 
         # Initial state
@@ -274,10 +274,26 @@ class DMPC(object):
         return optvar['x'], optvar['u']
 
     def mpc_controller(self, x0, u0=None):
+        """
+        MPC interface.
+
+        :param x0: initial state
+        :type x0: ca.DM
+        :param u0: initial guess for control input, defaults to None
+        :type u0: ca.DM, optional
+        :return: first control input
+        :rtype: ca.DM
+        """
 
         _, u_pred = self.solve_mpc(x0)
 
         return u_pred[0]
 
     def set_reference(self, x_sp):
+        """
+        Set MPC reference.
+
+        :param x_sp: reference for the state
+        :type x_sp: ca.DM
+        """
         self.x_sp = x_sp

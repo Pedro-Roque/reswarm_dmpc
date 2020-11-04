@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import casadi as ca
 import numpy as np
+import reswarm_dmpc.util as ut
 from filterpy.kalman import KalmanFilter
 
 
@@ -79,9 +80,9 @@ class Astrobee(object):
 
         # Model
         pdot = v
-        vdot = ca.mtimes(self.r_mat(q), f)/self.mass
+        vdot = ca.mtimes(ut.r_mat(q), f)/self.mass
         qdot = ca.mtimes(self.xi_mat(q), w)/2
-        wdot = ca.mtimes(ca.inv(self.inertia), tau + ca.mtimes(self.skew(w),
+        wdot = ca.mtimes(ca.inv(self.inertia), tau + ca.mtimes(ut.skew(w),
                          ca.mtimes(self.inertia, w)))
 
         dxdt = [pdot, vdot, qdot, wdot]
@@ -103,9 +104,8 @@ class Astrobee(object):
         u = ca.MX.sym('u', self.m, 1)
 
         x = x0
-        print(x.shape)
+
         k1 = dynamics(x, u)
-        print("Step 1 done")
         k2 = dynamics(x + self.dt / 2 * k1, u)
         k3 = dynamics(x + self.dt / 2 * k2, u)
         k4 = dynamics(x + self.dt * k3, u)
@@ -116,38 +116,6 @@ class Astrobee(object):
         rk4 = ca.Function('RK4', [x0, u], [xdot])
 
         return rk4
-
-    def r_mat(self, q):
-        """
-        Generate rotation matrix from unit quaternion
-
-        :param q: unit quaternion
-        :type q: ca.MX
-        :return: rotation matrix, SO(3)
-        :rtype: ca.MX
-        """
-
-        Rmat = ca.MX(3, 3)
-
-        # Extract states
-        qx = q[0]
-        qy = q[1]
-        qz = q[2]
-        qw = q[3]
-
-        Rmat[0, 0] = 1 - 2*qy**2 - 2*qz**2
-        Rmat[0, 1] = 2*qx*qy - 2*qz*qw
-        Rmat[0, 2] = 2*qx*qz + 2*qy*qw
-
-        Rmat[1, 0] = 2*qx*qy + 2*qz*qw
-        Rmat[1, 1] = 1 - 2*qx**2 - 2*qz**2
-        Rmat[1, 2] = 2*qy*qz - 2*qx*qw
-
-        Rmat[2, 0] = 2*qx*qz - 2*qy*qw
-        Rmat[2, 1] = 2*qy*qz + 2*qx*qw
-        Rmat[2, 2] = 1 - 2*qx**2 - 2*qy**2
-
-        return Rmat
 
     def xi_mat(self, q):
         """
@@ -185,29 +153,3 @@ class Astrobee(object):
         Xi[3, 2] = -qz
 
         return Xi
-
-    def skew(self, v):
-        """
-        Returns the skew matrix of a vector v
-
-        :param v: vector
-        :type v: ca.MX
-        :return: skew matrix of v
-        :rtype: ca.MX
-        """
-
-        sk = ca.MX.zeros(3, 3)
-
-        # Extract vector components
-        x = v[0]
-        y = v[1]
-        z = v[2]
-
-        sk[0, 1] = -z
-        sk[1, 0] = z
-        sk[0, 2] = y
-        sk[2, 0] = -y
-        sk[1, 2] = -x
-        sk[2, 1] = x
-
-        return sk
