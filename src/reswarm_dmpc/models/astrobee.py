@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import casadi as ca
 import numpy as np
+import numpy.matlib as nmp
 from reswarm_dmpc.util import *
 from filterpy.kalman import KalmanFilter
 
@@ -30,6 +31,7 @@ class Astrobee(object):
         self.n = 13
         self.m = 6
         self.dt = h
+        self.trajectory_type = "Sinusoidal"
 
         # Model prperties
         self.mass = mass
@@ -117,7 +119,7 @@ class Astrobee(object):
         # Normalize quaternion: TODO(Pedro-Roque): check how to normalize
         # xdot[6:10] = xdot[6:10]/ca.norm_2(xdot[6:10])
         fun_options = {
-            "jit": True,
+            "jit": False,
             "jit_options": {"flags": ["-O2"]}
         }
         rk4 = ca.Function('RK4', [x0, u], [xdot], fun_options)
@@ -160,3 +162,46 @@ class Astrobee(object):
         Xi[3, 2] = -qz
 
         return Xi
+
+    def get_trajectory(self, x0, t0, npoints):
+        """
+        Generate trajectory to be followed.
+
+        :param x0: starting position
+        :type x0: ca.DM
+        :param t0: starting time
+        :type t0: float
+        :param npoints: number of trajectory points
+        :type npoints: int
+        :return: trajectory with shape (Nx, npoints)
+        :rtype: np.array
+        """
+
+        if self.trajectory_type == "Sinusoidal":
+            # Trajectory params
+            f = 0.1
+            A = 0.1
+
+            # Trajectory reference: oscillate in Y with vy
+            t = np.linspace(t0, t0+(npoints-1)*self.dt, npoints)
+            vy = A*np.sin(2*np.pi*f*t)
+            vx = 0.05*np.ones((1, npoints))
+
+            x_sp = np.zeros((3, npoints))
+            x_sp = np.append(x_sp, vx, axis=0)
+            x_sp = np.append(x_sp, [vy], axis=0)
+            x_sp = np.append(x_sp, np.zeros((4, npoints)), axis=0)
+            x_sp = np.append(x_sp, np.ones((1, npoints)), axis=0)
+            x_sp = np.append(x_sp, np.zeros((3, npoints)), axis=0)
+
+        return x_sp
+
+    def set_trajectory_type(self, trj_type):
+        """
+        Set trajectory type to be followed
+
+        :param trj_type: trajectory format
+        :type trj_type: string
+        """
+
+        self.trajectory_type = trj_type

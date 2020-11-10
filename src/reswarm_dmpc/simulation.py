@@ -29,6 +29,7 @@ class EmbeddedSimEnvironment(object):
         self.total_sim_time = time  # seconds
         self.dt = self.model.dt
         self.estimation_in_the_loop = False
+        self.using_trajectory_ref = False
 
         # Plotting definitions
         self.plt_window = float("inf")  # running plot window [s]/float("inf")
@@ -57,11 +58,14 @@ class EmbeddedSimEnvironment(object):
             x = np.array([y_vec[:, -1]]).T
 
             # Get control input and obtain next state
-            u = self.controller(x)
+            if self.using_trajectory_ref:
+                u = self.controller(x, i*self.dt)
+            else:
+                u = self.controller(x)
             x_next = self.dynamics(x, u)
 
             # Store data
-            t = np.append(t, t[-1]+self.dt)
+            t = np.append(t, i*self.dt)
             y_vec = np.append(y_vec, np.array(x_next), axis=1)
             u_vec = np.append(u_vec, np.array(u), axis=1)
 
@@ -107,14 +111,8 @@ class EmbeddedSimEnvironment(object):
         """
         self.plt_window = window
 
-    def set_estimator(self, value):
-        """Enable or disable the KF estimator in the loop.
-
-        :param value: desired state
-        :type value: boolean
+    def use_trajectory_control(self, value):
         """
-        if isinstance(value, bool) is not True:
-            print("set_estimator needs to recieve a boolean variable")
-            exit()
-
-        self.estimation_in_the_loop = value
+        Helper function to set trajectory tracking controller.
+        """
+        self.using_trajectory_ref = value
