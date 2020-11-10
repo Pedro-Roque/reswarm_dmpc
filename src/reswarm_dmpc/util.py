@@ -48,7 +48,7 @@ def r_mat(q):
     return Rmat
 
 
-def skew(self, v):
+def skew(v):
     """
     Returns the skew matrix of a vector v
 

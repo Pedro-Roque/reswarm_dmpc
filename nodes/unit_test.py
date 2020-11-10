@@ -3,25 +3,51 @@ import numpy as np
 import scipy
 
 from reswarm_dmpc.model import Astrobee
-from reswarm_dmpc.mpc import DMPC
+from reswarm_dmpc.mpc import MPC
 from reswarm_dmpc.simulation import EmbeddedSimEnvironment
 
 # Part III - Full cart model
-pendulum = Astrobee(mass=1, inertia=np.diag([1, 1, 1]))
+abee = Astrobee(mass=1, inertia=np.diag([1, 1, 1]), h=0.1)
 
-# # Instantiate controller
-# ctl = MPC(model=pendulum,
-#           dynamics=pendulum.discrete_time_dynamics,
-#           horizon=7,
-#           Q=Q, R=R, P=P_LQR,
-#           ulb=-10, uub=10,
-#           xlb=[-2, -10, -np.pi/2, -np.pi/2],
-#           xub=[12, 10, np.pi/2, np.pi/2])
+# Instantiate controller
+Q = np.diag([10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100])
+R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])
+P = Q*100
 
-# # Solve without disturbance
-# ctl.set_reference(x_sp=np.array([10, 0, 0, 0]))
-# sim_env_full = EmbeddedSimEnvironment(model=pendulum,
-#                                       dynamics=pendulum.model,
-#                                       controller=ctl.mpc_controller,
-#                                       time=6)
-# sim_env_full.run([0, 0, 0, 0])
+ctl = MPC(model=abee,
+          dynamics=abee.model,
+          horizon=1,
+          Q=Q, R=R, P=P,
+          ulb=[-1, -1, -1, -0.1, -0.1, -0.1],
+          uub=[1, 1, 1, 0.1, 0.1, 0.1],
+          xlb=[-1, -1, -1, -0.1, -0.1, -0.1,
+               -1, -1, -1, -1, -0.1, -0.1, -0.1],
+          xub=[1, 1, 1, 0.1, 0.1, 0.1,
+               1, 1, 1, 1, 0.1, 0.1, 0.1])
+
+# Position setpoint
+x_ref = np.array([.5, .5, .5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
+ctl.set_reference(x_sp=x_ref)
+sim_env_full = EmbeddedSimEnvironment(model=abee,
+                                      dynamics=abee.model,
+                                      controller=ctl.mpc_controller,
+                                      time=20)
+# sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
+
+# Attitude setpoint
+x_ref = np.array([0, 0, 0, 0, 0, 0, 0.189, 0.038, 0.269, 0.944, 0, 0, 0])
+ctl.set_reference(x_sp=x_ref)
+sim_env_full = EmbeddedSimEnvironment(model=abee,
+                                      dynamics=abee.model,
+                                      controller=ctl.mpc_controller,
+                                      time=20)
+# sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
+
+# Pose setpoint
+x_ref = np.array([0.5, 0.5, 0.5, 0, 0, 0, 0.189, 0.038, 0.269, 0.944, 0, 0, 0])
+ctl.set_reference(x_sp=x_ref)
+sim_env_full = EmbeddedSimEnvironment(model=abee,
+                                      dynamics=abee.model,
+                                      controller=ctl.mpc_controller,
+                                      time=20)
+sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])

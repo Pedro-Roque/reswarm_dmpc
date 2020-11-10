@@ -32,6 +32,7 @@ class EmbeddedSimEnvironment(object):
 
         # Plotting definitions
         self.plt_window = float("inf")  # running plot window [s]/float("inf")
+        plt.style.use('ggplot')
 
     def run(self, x0):
         """
@@ -42,12 +43,10 @@ class EmbeddedSimEnvironment(object):
         sim_loop_length = int(self.total_sim_time/self.dt) + 1  # account for 0
         t = np.array([0])
         y_vec = np.array([x0]).T
-        u_vec = np.array([0])
+        u_vec = np.array([[0, 0, 0, 0, 0, 0]]).T
 
         # Start figure
-        if len(x0) == 4:
-            _, (ax1, ax2, ax3) = plt.subplots(3)
-        elif len(x0) == 2:
+        if len(x0) == 13:
             fig, (ax1, ax2) = plt.subplots(2)
         else:
             print("Check your state dimensions.")
@@ -64,7 +63,7 @@ class EmbeddedSimEnvironment(object):
             # Store data
             t = np.append(t, t[-1]+self.dt)
             y_vec = np.append(y_vec, np.array(x_next), axis=1)
-            u_vec = np.append(u_vec, np.array(u))
+            u_vec = np.append(u_vec, np.array(u), axis=1)
 
             # Get plot window values:
             if self.plt_window != float("inf"):
@@ -73,39 +72,20 @@ class EmbeddedSimEnvironment(object):
             else:
                 l_wnd = 0
 
-            if len(x0) == 4:
+            if len(x0) == 13:
                 ax1.clear()
-                ax1.set_title("Pendulum on Cart - Ref: "
-                              + str(self.model.x_d)+" [m]")
-                ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1], 'r--',
-                         t[l_wnd:-1], y_vec[1, l_wnd:-1], 'b--')
-                ax1.legend(["x1", "x2"])
-                ax1.set_ylabel("X1 [m] / X2 [m/s]")
+                ax1.set_title("Astrobee Setpoint Test")
+                ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1],
+                         t[l_wnd:-1], y_vec[1, l_wnd:-1],
+                         t[l_wnd:-1], y_vec[2, l_wnd:-1])
+                ax1.legend(["X", "Y", "Z"])
+                ax1.set_ylabel("Position [m]")
                 ax1.grid()
 
                 ax2.clear()
-                ax2.plot(t[l_wnd:-1], y_vec[2, l_wnd:-1], 'g--',
-                         t[l_wnd:-1], y_vec[3, l_wnd:-1], 'k--')
-                ax2.legend(["x3", "x4"])
-                ax2.set_ylabel("X3 [rad] / X4 [rad/s]")
-                ax2.grid()
-
-                ax3.clear()
-                ax3.plot(t[l_wnd:-1], u_vec[l_wnd:-1], 'b--')
-                ax3.set_xlabel("Time [s]")
-                ax3.set_ylabel("Control [u]")
-                ax3.grid()
-            elif len(x0) == 2:
-                ax1.clear()
-                ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1], 'r--',
-                         t[l_wnd:-1], y_vec[1, l_wnd:-1], 'b--')
-                ax1.legend(["x1", "x2"])
-                ax1.set_ylabel("X1 [rad] / X2 [rad/s]")
-                ax1.set_title("Inverted pendulum")
-                ax1.grid()
-
-                ax2.clear()
-                ax2.plot(t[l_wnd:-1], u_vec[l_wnd:-1], 'b--')
+                ax2.plot(t[l_wnd:-1], u_vec[0, l_wnd:-1],
+                         t[l_wnd:-1], u_vec[1, l_wnd:-1],
+                         t[l_wnd:-1], u_vec[2, l_wnd:-1])
                 ax2.set_xlabel("Time [s]")
                 ax2.set_ylabel("Control [u]")
                 ax2.grid()

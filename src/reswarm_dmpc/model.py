@@ -4,20 +4,20 @@ from __future__ import print_function
 
 import casadi as ca
 import numpy as np
-import reswarm_dmpc.util as ut
+from reswarm_dmpc.util import *
 from filterpy.kalman import KalmanFilter
 
 
 class Astrobee(object):
     def __init__(self, mass, inertia, h=0.01):
         """
-        Pendulum model class.
+        Astrobee Robot, NMPC tester class.
 
-        Describes the movement of a pendulum with mass 'm' attached to a cart
-        with mass 'M'. All methods should return casadi.MX or casadi.DM
-        variable types.
-
-        :param h: sampling time, defaults to 0.1
+        :param mass: mass of the Astrobee
+        :type mass: float
+        :param inertia: inertia tensor of the Astrobee
+        :type inertia: np.diag
+        :param h: sampling time of the discrete system, defaults to 0.01
         :type h: float, optional
         """
 
@@ -80,9 +80,9 @@ class Astrobee(object):
 
         # Model
         pdot = v
-        vdot = ca.mtimes(ut.r_mat(q), f)/self.mass
+        vdot = ca.mtimes(r_mat(q), f)/self.mass
         qdot = ca.mtimes(self.xi_mat(q), w)/2
-        wdot = ca.mtimes(ca.inv(self.inertia), tau + ca.mtimes(ut.skew(w),
+        wdot = ca.mtimes(ca.inv(self.inertia), tau + ca.mtimes(skew(w),
                          ca.mtimes(self.inertia, w)))
 
         dxdt = [pdot, vdot, qdot, wdot]
@@ -111,8 +111,8 @@ class Astrobee(object):
         k4 = dynamics(x + self.dt * k3, u)
         xdot = x0 + self.dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
 
-        # Normalize quaternion
-        xdot[6:10] = xdot[6:10]/ca.norm_2(xdot[6:10])
+        # Normalize quaternion: TODO(Pedro-Roque): check how to normalize
+        # xdot[6:10] = xdot[6:10]/ca.norm_2(xdot[6:10])
         rk4 = ca.Function('RK4', [x0, u], [xdot])
 
         return rk4

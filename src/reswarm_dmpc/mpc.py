@@ -11,19 +11,20 @@ import time
 import numpy as np
 import casadi as ca
 import casadi.tools as ctools
-
 from scipy.stats import norm
 import scipy.linalg
 
+from reswarm_dmpc.util import *
 
-class DMPC(object):
+
+class MPC(object):
 
     def __init__(self, model, dynamics,
                  Q, P, R, horizon=10,
                  ulb=None, uub=None, xlb=None, xub=None,
                  terminal_constraint=None):
         """
-        MPC Controller Class
+        MPC Controller Class for setpoint stabilization
 
         :param model: model class
         :type model: python class
@@ -51,18 +52,20 @@ class DMPC(object):
 
         build_solver_time = -time.time()
         self.dt = model.dt
-        self.Nx, self.Nu = model.n, model.m, 1
+        self.Nx = model.n
+        self.Nu = model.m
         self.Nt = int(horizon / self.dt)
         self.dynamics = dynamics
 
         # Initialize variables
-        self.set_cost_functions()
-        self.set_options_dicts()
-        self.x_sp = None
-
         self.Q = ca.MX(Q)
         self.P = ca.MX(P)
         self.R = ca.MX(R)
+
+        self.set_options_dicts()
+        self.set_cost_functions()
+        self.test_cost_functions(Q, R, P)
+        self.x_sp = None
 
         if xub is None:
             xub = np.full((self.Nx), np.inf)
@@ -130,10 +133,10 @@ class DMPC(object):
                 con_ineq_lb.append(xlb)
 
             # Objective Function / Cost Function
-            obj += self.running_cost((x_t - x0_ref), self.Q, u_t, self.R)
+            obj += self.running_cost(x_t, x0_ref, self.Q, u_t, self.R)
 
         # Terminal Cost
-        obj += self.terminal_cost(opt_var['x', self.Nt] - x0_ref, self.P)
+        obj += self.terminal_cost(opt_var['x', self.Nt], x0_ref, self.P)
 
         # Terminal contraint
         if terminal_constraint is not None:
@@ -153,11 +156,12 @@ class DMPC(object):
         self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
         self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
-        self.solver = ca.nlpsol('mpc_solver', 'scpgen', nlp,
-                                self.sol_options_scpgen)
+        self.solver = ca.nlpsol('mpc_solver', 'ipopt', nlp,
+                                self.sol_options_ipopt)
 
         build_solver_time += time.time()
         print('\n________________________________________')
+        print('# Receding horizon length: %d ' % self.Nt)
         print('# Time to build mpc solver: %f sec' % build_solver_time)
         print('# Number of variables: %d' % self.num_var)
         print('# Number of equality constraints: %d' % num_eq_con)
@@ -172,7 +176,7 @@ class DMPC(object):
 
         # Functions options
         self.fun_options = {
-            'jit': True
+            'jit': False
         }
 
         # Options for NLP Solvers
@@ -211,16 +215,67 @@ class DMPC(object):
         return True
 
     def set_cost_functions(self):
+        """
+        Helper function to setup the cost functions.
+        """
 
         # Create functions and function variables for calculating the cost
-        Q = ca.MX.sym('Q', self.Nx, self.Nx)
-        R = ca.MX.sym('R', self.Nu)
-        P = ca.MX.sym('P', self.Nx, self.Nx)
+        Q = ca.MX.sym('Q', self.Nx-1, self.Nx-1)
+        P = ca.MX.sym('P', self.Nx-1, self.Nx-1)
+        R = ca.MX.sym('R', self.Nu, self.Nu)
 
         x = ca.MX.sym('x', self.Nx)
+        xr = ca.MX.sym('xr', self.Nx)
         u = ca.MX.sym('u', self.Nu)
 
-        # Prepare cost functions
+        # Prepare variables
+        p = x[0:3]
+        v = x[3:6]
+        q = x[6:10]
+        w = x[10:]
+
+        pr = xr[0:3]
+        vr = xr[3:6]
+        qr = xr[6:10]
+        wr = xr[10:]
+
+        # Calculate errors
+        ep = p - pr
+        ev = v - vr
+        ew = w - wr
+        eq = 0.5*inv_skew(ca.mtimes(r_mat(qr).T, r_mat(q))
+                          - ca.mtimes(r_mat(q).T, r_mat(qr)))
+
+        e_vec = ca.vertcat(*[ep, ev, eq, ew])
+
+        # Calculate running cost
+        ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec)
+        ln = ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec) \
+            + ca.mtimes(ca.mtimes(u.T, R), u)
+
+        self.running_cost = ca.Function('ln', [x, xr, Q, u, R], [ln],
+                                        self.fun_options)
+
+        # Calculate terminal cost
+        V = ca.mtimes(ca.mtimes(e_vec.T, P), e_vec)
+        self.terminal_cost = ca.Function('V', [x, xr, P], [V],
+                                         self.fun_options)
+
+        return
+
+    def test_cost_functions(self, Q, R, P):
+        """
+        Helper function to test the cost functions.
+        """
+        x = ca.DM.zeros(13, 1)
+        xr = ca.DM.zeros(13, 1)
+        u = ca.DM.zeros(6, 1)
+        x[10] = 1
+        xr[10] = 1
+
+        print("Running cost:", self.running_cost(x, xr, Q, u, R))
+
+        print("Terminal cost:", self.terminal_cost(x, xr, P))
 
         return
 
@@ -249,7 +304,6 @@ class DMPC(object):
         self.optvar_init = self.opt_var(0)
         self.optvar_init['x', 0] = self.optvar_x0[0]
 
-        print('\nSolving MPC with %d step horizon' % self.Nt)
         solve_time = -time.time()
 
         param = ca.vertcat(x0, self.x_sp, u0)
