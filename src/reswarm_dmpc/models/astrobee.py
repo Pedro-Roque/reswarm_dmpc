@@ -185,10 +185,21 @@ class Astrobee(object):
             # Trajectory reference: oscillate in Y with vy
             t = np.linspace(t0, t0+(npoints-1)*self.dt, npoints)
             vy = A*np.sin(2*np.pi*f*t)
-            vx = 0.05*np.ones((1, npoints))
+            vx = 0.05*np.ones(npoints)
 
-            x_sp = np.zeros((3, npoints))
-            x_sp = np.append(x_sp, vx, axis=0)
+            # Once we have a velocity profile, we can create the
+            # position references
+            x = np.array([x0[0]])
+            y = np.array([x0[1]])
+            for i in range(npoints-1):
+                x = np.append(x, x[-1]+vx[i]*self.dt)
+                y = np.append(y, y[-1]+vx[i]*self.dt)
+
+            # Create trajectory matrix
+            x_sp = np.array([x])
+            x_sp = np.append(x_sp, [y], axis=0)
+            x_sp = np.append(x_sp, np.zeros((1, npoints)), axis=0)
+            x_sp = np.append(x_sp, [vx], axis=0)
             x_sp = np.append(x_sp, [vy], axis=0)
             x_sp = np.append(x_sp, np.zeros((4, npoints)), axis=0)
             x_sp = np.append(x_sp, np.ones((1, npoints)), axis=0)

@@ -44,11 +44,12 @@ class EmbeddedSimEnvironment(object):
         sim_loop_length = int(self.total_sim_time/self.dt) + 1  # account for 0
         t = np.array([0])
         y_vec = np.array([x0]).T
+        ref_vec = np.array([x0]).T
         u_vec = np.array([[0, 0, 0, 0, 0, 0]]).T
 
         # Start figure
         if len(x0) == 13:
-            fig, (ax1, ax2) = plt.subplots(2)
+            fig, (ax1, ax2, ax3, ax4) = plt.subplots(4)
         else:
             print("Check your state dimensions.")
             exit()
@@ -59,7 +60,8 @@ class EmbeddedSimEnvironment(object):
 
             # Get control input and obtain next state
             if self.using_trajectory_ref:
-                u = self.controller(x, i*self.dt)
+                u, ref = self.controller(x, i*self.dt)
+                ref_vec = np.append(ref_vec, np.array([ref]).T, axis=1)
             else:
                 u = self.controller(x)
             x_next = self.dynamics(x, u)
@@ -76,7 +78,34 @@ class EmbeddedSimEnvironment(object):
             else:
                 l_wnd = 0
 
-            if len(x0) == 13:
+            # Plot type
+            if self.using_trajectory_ref:
+                ax1.clear()
+                ax1.set_title("Astrobee Testing")
+                ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1]-ref_vec[0, l_wnd:-1],
+                         t[l_wnd:-1], y_vec[1, l_wnd:-1]-ref_vec[1, l_wnd:-1],
+                         t[l_wnd:-1], y_vec[2, l_wnd:-1]-ref_vec[2, l_wnd:-1])
+                ax1.legend(["X", "Y", "Z"])
+                ax1.set_ylabel("Error [m]")
+                ax1.grid()
+
+                ax2.clear()
+                ax2.set_title("Astrobee Testing")
+                ax2.plot(t[l_wnd:-1], y_vec[3, l_wnd:-1]-ref_vec[3, l_wnd:-1],
+                         t[l_wnd:-1], y_vec[4, l_wnd:-1]-ref_vec[4, l_wnd:-1],
+                         t[l_wnd:-1], y_vec[5, l_wnd:-1]-ref_vec[5, l_wnd:-1])
+                ax2.legend(["X", "Y", "Z"])
+                ax2.set_ylabel("Error [m]")
+                ax2.grid()
+
+                ax3.clear()
+                ax3.plot(t[l_wnd:-1], u_vec[0, l_wnd:-1],
+                         t[l_wnd:-1], u_vec[1, l_wnd:-1],
+                         t[l_wnd:-1], u_vec[2, l_wnd:-1])
+                ax3.set_xlabel("Time [s]")
+                ax3.set_ylabel("Control [u]")
+                ax3.grid()
+            else:
                 ax1.clear()
                 ax1.set_title("Astrobee Setpoint Test")
                 ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1],
@@ -94,9 +123,6 @@ class EmbeddedSimEnvironment(object):
                 ax2.set_ylabel("Control [u]")
                 ax2.grid()
 
-            else:
-                print("Please check your state dimensions.")
-                exit()
             plt.pause(0.01)
 
         plt.show()

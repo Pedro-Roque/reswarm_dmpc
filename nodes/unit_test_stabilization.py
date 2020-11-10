@@ -6,7 +6,7 @@ from reswarm_dmpc.models.astrobee import Astrobee
 from reswarm_dmpc.controllers.mpc import MPC
 from reswarm_dmpc.simulation import EmbeddedSimEnvironment
 
-# Part III - Full cart model
+# Instantiante Model
 abee = Astrobee(h=0.05)
 
 # Instantiate controller

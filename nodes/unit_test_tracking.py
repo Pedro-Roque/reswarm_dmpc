@@ -6,10 +6,10 @@ from reswarm_dmpc.models.astrobee import Astrobee
 from reswarm_dmpc.controllers.mpc_trajectory import TMPC
 from reswarm_dmpc.simulation import EmbeddedSimEnvironment
 
-# Part III - Full cart model
+# Instantiante Model
 abee = Astrobee(h=0.05)
 
-# Instantiate controller
+# Instantiate controller (to track a velocity)
 Q = np.diag([0, 0, 0, 10, 10, 10, 100, 100, 100, 10, 10, 10])
 R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])*2
 P = Q*100

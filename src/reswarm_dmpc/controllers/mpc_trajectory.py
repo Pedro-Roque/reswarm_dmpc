@@ -351,12 +351,13 @@ class TMPC(object):
         """
         # Generate trajectory from t0 and x0
         x_sp = self.model.get_trajectory(x0, t0, self.Nt+1)
+        ref = x_sp[:, 0]
         x_sp = x_sp.reshape(self.Nx*(self.Nt+1), order='F')
         self.set_reference(x_sp)
 
         _, u_pred = self.solve_mpc(x0)
 
-        return u_pred[0]
+        return u_pred[0], ref
 
     def set_reference(self, x_sp):
         """
