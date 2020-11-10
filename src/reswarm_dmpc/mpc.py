@@ -176,13 +176,15 @@ class MPC(object):
 
         # Functions options
         self.fun_options = {
-            'jit': False
+            "jit": True,
+            "jit_options": {"flags": ["-O2"]}
         }
 
         # Options for NLP Solvers
         # -> IPOPT
         self.sol_options_ipopt = {
             'ipopt.max_iter': 20,
+            'ipopt.max_resto_iter': 30,
             'ipopt.print_level': 0,
             'ipopt.mu_init': 0.01,
             'ipopt.tol': 1e-4,
@@ -194,7 +196,9 @@ class MPC(object):
             'ipopt.warm_start_mult_bound_push': 1e-4,
             'print_time': False,
             'verbose': False,
-            'expand': True
+            'expand': True,
+            "jit": True,
+            "jit_options": {"flags": ["-O2"]}
         }
 
         # -> SCPGEN
@@ -304,8 +308,6 @@ class MPC(object):
         self.optvar_init = self.opt_var(0)
         self.optvar_init['x', 0] = self.optvar_x0[0]
 
-        solve_time = -time.time()
-
         param = ca.vertcat(x0, self.x_sp, u0)
         args = dict(x0=self.optvar_init,
                     lbx=self.optvar_lb,
@@ -315,12 +317,13 @@ class MPC(object):
                     p=param)
 
         # Solve NLP - TODO fix this
+        solve_time = -time.time()
         sol = self.solver(**args)
+        solve_time += time.time()
         # status = self.solver.stats()['return_status'] # IPOPT
         status = self.solver.stats()['success']  # SCPGEN
         optvar = self.opt_var(sol['x'])
 
-        solve_time += time.time()
         print ('\nSolver status: ', status)
         print('MPC took %f seconds to solve.' % (solve_time))
         print('MPC cost: ', sol['f'])

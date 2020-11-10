@@ -9,7 +9,10 @@ from filterpy.kalman import KalmanFilter
 
 
 class Astrobee(object):
-    def __init__(self, mass, inertia, h=0.01):
+    def __init__(self,
+                 mass=7,
+                 inertia=np.diag([0.1083, 0.1083, 0.1083]),
+                 h=0.01):
         """
         Astrobee Robot, NMPC tester class.
 
@@ -113,7 +116,11 @@ class Astrobee(object):
 
         # Normalize quaternion: TODO(Pedro-Roque): check how to normalize
         # xdot[6:10] = xdot[6:10]/ca.norm_2(xdot[6:10])
-        rk4 = ca.Function('RK4', [x0, u], [xdot])
+        fun_options = {
+            "jit": True,
+            "jit_options": {"flags": ["-O2"]}
+        }
+        rk4 = ca.Function('RK4', [x0, u], [xdot], fun_options)
 
         return rk4
 
