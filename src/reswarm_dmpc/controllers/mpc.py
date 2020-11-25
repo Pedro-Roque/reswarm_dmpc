@@ -156,8 +156,8 @@ class MPC(object):
         self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
         self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
-        self.solver = ca.nlpsol('mpc_solver', 'ipopt', nlp,
-                                self.sol_options_ipopt)
+        self.solver = ca.nlpsol('mpc_solver', 'sqpmethod', nlp,
+                                self.sol_options_sqp)
 
         build_solver_time += time.time()
         print('\n________________________________________')
@@ -173,14 +173,36 @@ class MPC(object):
         """
         Helper function to set the dictionaries for solver and function options
         """
-
+        self.set_jit = True
         # Functions options
         self.fun_options = {
-            "jit": True,
-            "jit_options": {"flags": ["-O2"]}
+            "jit": self.set_jit,
+            "jit_options": {'compiler': 'ccache gcc', "flags": ["-O2"]},
+            'compiler': 'shell',
+            'jit_temp_suffix': False
         }
 
         # Options for NLP Solvers
+        # -> SQP Method
+        qp_opts = {
+            'max_iter': 10,
+            'error_on_fail': False,
+            'print_header': False,
+            'print_iter': False
+        }
+        self.sol_options_sqp = {
+            'max_iter': 10,
+            'qpsol': 'qrqp',
+            "jit": self.set_jit,
+            "jit_options": {'compiler': 'ccache gcc', "flags": ["-O2"]},
+            'compiler': 'shell',
+            'jit_temp_suffix': False,
+            'print_header': False,
+            'print_time': False,
+            'print_iteration': False,
+            'qpsol_options': qp_opts
+        }
+
         # -> IPOPT
         self.sol_options_ipopt = {
             'ipopt.max_iter': 20,
@@ -199,21 +221,6 @@ class MPC(object):
             'expand': True,
             "jit": True,
             "jit_options": {"flags": ["-O2"]}
-        }
-
-        # -> SCPGEN
-        qp_opts = {
-                    'printLevel': 'tabular',
-                    'CPUtime': 0.0001
-                  }
-        self.sol_options_scpgen = {
-            'qpsol': 'qpoases',
-            'codegen': True,
-            'print_header': False,
-            'print_time': False,
-            'print_in': False,
-            'print_out': False,
-            'qpsol_options': qp_opts
         }
 
         return True
@@ -317,20 +324,20 @@ class MPC(object):
                     p=param)
 
         # Solve NLP - TODO fix this
-        solve_time = -time.time()
+        self.solve_time = -time.time()
         sol = self.solver(**args)
-        solve_time += time.time()
+        self.solve_time += time.time()
         # status = self.solver.stats()['return_status'] # IPOPT
         status = self.solver.stats()['success']  # SCPGEN
         optvar = self.opt_var(sol['x'])
 
         print ('\nSolver status: ', status)
-        print('MPC took %f seconds to solve.' % (solve_time))
+        print('MPC took %f seconds to solve.' % (self.solve_time))
         print('MPC cost: ', sol['f'])
 
         return optvar['x'], optvar['u']
 
-    def mpc_controller(self, x0, u0=None):
+    def mpc_controller(self, x0, _):
         """
         MPC interface.
 
@@ -344,7 +351,7 @@ class MPC(object):
 
         _, u_pred = self.solve_mpc(x0)
 
-        return u_pred[0]
+        return u_pred[0], self.x_sp
 
     def set_reference(self, x_sp):
         """
@@ -354,3 +361,9 @@ class MPC(object):
         :type x_sp: ca.DM
         """
         self.x_sp = x_sp
+
+    def get_last_solve_time(self):
+        """
+        Helper function that returns the last solver time.
+        """
+        return self.solve_time
