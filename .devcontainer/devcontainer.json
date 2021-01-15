@@ -1,0 +1,13 @@
+{
+    "name": "ReSWARM",
+    "dockerFile": "Dockerfile",
+    "appPort": 3000,
+    "settings": {
+      "terminal.integrated.shell.linux": "/bin/bash"
+    },
+    "build": {
+      "args": {
+        "GIT_ACCESS_TOKEN": "${localEnv:DOCKERPAT}",
+      }
+    }
+  }
