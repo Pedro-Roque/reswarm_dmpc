@@ -177,7 +177,8 @@ class MPC(object):
         # Functions options
         self.fun_options = {
             "jit": self.set_jit,
-            "jit_options": {'compiler': 'ccache gcc', "flags": ["-O2"]},
+            "jit_options": {'compiler': 'ccache gcc',
+                            'flags': ["-O2", "-pipe"]},
             'compiler': 'shell',
             'jit_temp_suffix': False
         }
@@ -191,11 +192,14 @@ class MPC(object):
             'print_iter': False
         }
         self.sol_options_sqp = {
-            'max_iter': 10,
+            'max_iter': 3,
             'qpsol': 'qrqp',
             "jit": self.set_jit,
-            "jit_options": {'compiler': 'ccache gcc', "flags": ["-O2"]},
+            "jit_options": {'compiler': 'ccache gcc',
+                            'flags': ["-O2", "-pipe"]},
             'compiler': 'shell',
+            #'convexify_strategy': '',
+            'convexify_margin': 1e-5,
             'jit_temp_suffix': False,
             'print_header': False,
             'print_time': False,

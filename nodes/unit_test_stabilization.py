@@ -33,7 +33,7 @@ sim_env_full = EmbeddedSimEnvironment(model=abee,
                                       ctl_class=ctl,
                                       controller=ctl.mpc_controller,
                                       time=20)
-_, _, _, avg_t1 = sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
+# _, _, _, avg_t1 = sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
 
 # Attitude setpoint
 x_ref = np.array([0, 0, 0, 0, 0, 0, 0.189, 0.038, 0.269, 0.944, 0, 0, 0])
