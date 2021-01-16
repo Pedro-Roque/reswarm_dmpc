@@ -198,7 +198,7 @@ class MPC(object):
             "jit_options": {'compiler': 'ccache gcc',
                             'flags': ["-O2", "-pipe"]},
             'compiler': 'shell',
-            #'convexify_strategy': '',
+            # 'convexify_strategy': '',
             'convexify_margin': 1e-5,
             'jit_temp_suffix': False,
             'print_header': False,
@@ -264,7 +264,6 @@ class MPC(object):
         e_vec = ca.vertcat(*[ep, ev, eq, ew])
 
         # Calculate running cost
-        ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec)
         ln = ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec) \
             + ca.mtimes(ca.mtimes(u.T, R), u)
 
@@ -335,7 +334,7 @@ class MPC(object):
         status = self.solver.stats()['success']  # SCPGEN
         optvar = self.opt_var(sol['x'])
 
-        print ('\nSolver status: ', status)
+        print('\nSolver status: ', status)
         print('MPC took %f seconds to solve.' % (self.solve_time))
         print('MPC cost: ', sol['f'])
 

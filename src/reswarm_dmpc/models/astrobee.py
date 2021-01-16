@@ -6,7 +6,6 @@ import casadi as ca
 import numpy as np
 import numpy.matlib as nmp
 from reswarm_dmpc.util import *
-from filterpy.kalman import KalmanFilter
 
 
 class Astrobee(object):
@@ -26,11 +25,14 @@ class Astrobee(object):
         """
 
         # Model
+        self.solver = 'acados'
         self.nonlinear_model = self.astrobee_dynamics
         self.model = None
         self.n = 13
         self.m = 6
         self.dt = h
+
+        # Tracking
         self.trajectory_type = "Sinusoidal"
 
         # Model prperties
@@ -46,18 +48,29 @@ class Astrobee(object):
         """
         Helper function to populate Astrobee's dynamics.
         """
+        if self.solver == 'acados':
+            self.x = ca.vertcat(ca.MX.sym('x', self.n, 1))
+            self.u = ca.vertcat(ca.MX.sym('u', self.m, 1))
+            self.xdot = ca.vertcat(ca.MX.sym('xdot', self.n, 1))
+            self.name = "astrobee"
 
-        self.model = self.rk4_integrator(self.astrobee_dynamics)
+            self.f_expl = self.astrobee_dynamics(self.x, self.u)
+            self.f_impl = self.xdot - self.f_expl
+            self.z = []
+        else:
+            self.model = self.rk4_integrator(self.astrobee_dynamics)
+
         return
 
     def test_dynamics(self):
         """
         Helper function for a simple dynamics test.
         """
-        x0 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
-        u0 = np.array([0.1, 0.1, 0.1, 0, 0, 0.1])
-        xt_n = self.model(x0, u0)  # state after self.dt seconds
-        print(xt_n)
+        if self.solver != 'acados':
+            x0 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
+            u0 = np.array([0.1, 0.1, 0.1, 0, 0, 0.1])
+            xt_n = self.model(x0, u0)  # state after self.dt seconds
+            print(xt_n)
 
     def astrobee_dynamics(self, x, u):
         """

@@ -29,6 +29,7 @@ ctl = TMPC(model=abee,
 abee.set_trajectory_type("Sinusoidal")
 sim_env_full = EmbeddedSimEnvironment(model=abee,
                                       dynamics=abee.model,
+                                      ctl_class=ctl,
                                       controller=ctl.mpc_controller,
                                       time=20)
 sim_env_full.use_trajectory_control(True)

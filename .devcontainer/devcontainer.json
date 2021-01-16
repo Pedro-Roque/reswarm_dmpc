@@ -3,11 +3,17 @@
     "dockerFile": "Dockerfile",
     "appPort": 3000,
     "settings": {
-      "terminal.integrated.shell.linux": "/bin/bash"
+      "terminal.integrated.shell.linux": "/bin/zsh"
     },
-    "build": {
-      "args": {
-        "GIT_ACCESS_TOKEN": "${localEnv:DOCKERPAT}",
-      }
-    }
+    // "build": {
+    //   "args": {
+    //     "GIT_ACCESS_TOKEN": "${localEnv:DOCKERPAT}",
+    //   }
+    // },
+    "extensions": [
+      "ms-python.python"
+    ],
+    "postCreateCommand": "apt update && \
+                          apt install -y git zsh wget && wget https://github.com/robbyrussell/oh-my-zsh/raw/master/tools/install.sh -O - | zsh || true \
+                          export PYTHONPATH=/workspaces/reswarm_dmpc/src:$PYTHONPATH"
   }
