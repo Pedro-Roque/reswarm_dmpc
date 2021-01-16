@@ -60,6 +60,12 @@ ENV LD_LIBRARY_PATH="/usr/local/lib:$HOME/local/lib:${LD_LIBRARY_PATH}"
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"/home/reswarm/acados/lib"
 ENV ACADOS_SOURCE_DIR="/home/reswarm/acados"
 
+# Add Tera renderer for templated code
+RUN cd /home/reswarm/acados/bin && \
+    wget https://github.com/acados/tera_renderer/releases/download/v0.0.34/t_renderer-v0.0.34-linux && \
+    mv t_renderer-v0.0.34-linux t_renderer && \
+    chmod +x t_renderer
+
 # Test
 RUN pip3 install /home/reswarm/acados/interfaces/acados_template
 RUN cd /home/reswarm/acados/examples/acados_python/getting_started && \

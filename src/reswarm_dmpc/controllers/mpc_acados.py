@@ -10,7 +10,8 @@ from __future__ import print_function
 import time
 import numpy as np
 import casadi as ca
-from acados_template import AcadosOcp, AcadosOcpSolver, AcadosSimSolver, AcadosModel
+from acados_template import AcadosOcp, AcadosOcpSolver, AcadosSimSolver
+from acados_template import AcadosModel
 from scipy.stats import norm
 import scipy.linalg
 
@@ -144,7 +145,7 @@ class MPC(object):
         self.ocp.solver_options.tf = self.Tf
 
         self.acados_ocp_solver = AcadosOcpSolver(self.ocp,
-                                                 json_file='acados_ocp_astrobee.json')
+                                    json_file='acados_ocp_astrobee.json')
 
         build_solver_time += time.time()
         print('\n________________________________________')
@@ -157,7 +158,22 @@ class MPC(object):
         pass
 
     def running_cost(self, x, xr, Q, u, R):
+        """
+        Running cost function.
 
+        :param x: state
+        :type x: ca.MX
+        :param xr: desired state
+        :type xr: ca.MX replaced by numpy array
+        :param Q: weight matrix
+        :type Q: numpy array
+        :param u: control input
+        :type u: ca.MX
+        :param R: control weight matrix
+        :type R: numpy array
+        :return: cost
+        :rtype: ca.MX expression
+        """
         # Prepare variables
         p = x[0:3]
         v = x[3:6]
@@ -185,7 +201,18 @@ class MPC(object):
         return ln
 
     def terminal_cost(self, x, xr, P):
+        """
+        Terminal cost function.
 
+        :param x: state
+        :type x: ca.MX
+        :param xr: desired state
+        :type xr: ca.MX
+        :param P: terminal cost weight matrix
+        :type P: numpy array
+        :return: cost value
+        :rtype: ca.MX expression
+        """
         # Prepare variables
         p = x[0:3]
         v = x[3:6]
@@ -252,7 +279,7 @@ class MPC(object):
         status = self.solver.stats()['success']  # SCPGEN
         optvar = self.opt_var(sol['x'])
 
-        print ('\nSolver status: ', status)
+        print('\nSolver status: ', status)
         print('MPC took %f seconds to solve.' % (self.solve_time))
         print('MPC cost: ', sol['f'])
 

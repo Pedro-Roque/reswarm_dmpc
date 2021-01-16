@@ -3,7 +3,8 @@
     "dockerFile": "Dockerfile",
     "appPort": 3000,
     "settings": {
-      "terminal.integrated.shell.linux": "/bin/zsh"
+      "terminal.integrated.shell.linux": "/bin/zsh",
+      "autoDocstring.docstringFormat": "sphinx"
     },
     // "build": {
     //   "args": {
@@ -11,7 +12,11 @@
     //   }
     // },
     "extensions": [
-      "ms-python.python"
+      "ms-python.python",
+      "ms-vscode.cpptools",
+      "coenraads.bracket-pair-colorizer-2",
+      "gruntfuggly.todo-tree",
+      "njpwerner.autodocstring"
     ],
     "postCreateCommand": "apt update && \
                           apt install -y git zsh wget && wget https://github.com/robbyrussell/oh-my-zsh/raw/master/tools/install.sh -O - | zsh || true \
