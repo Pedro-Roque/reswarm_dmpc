@@ -4,7 +4,11 @@
     "appPort": 3000,
     "settings": {
       "terminal.integrated.shell.linux": "/bin/zsh",
-      "autoDocstring.docstringFormat": "sphinx"
+      "autoDocstring.docstringFormat": "sphinx",
+      "C_Cpp.default.includePath": [
+        "{$workspaceFolder}/**",
+        "/home/reswarm/acados/include"
+      ]
     },
     // "build": {
     //   "args": {
@@ -16,7 +20,9 @@
       "ms-vscode.cpptools",
       "coenraads.bracket-pair-colorizer-2",
       "gruntfuggly.todo-tree",
-      "njpwerner.autodocstring"
+      "njpwerner.autodocstring",
+      "ms-vscode.cmake-tools",
+      "twxs.cmake"
     ],
     "postCreateCommand": "apt update && \
                           apt install -y git zsh wget && wget https://github.com/robbyrussell/oh-my-zsh/raw/master/tools/install.sh -O - | zsh || true \
