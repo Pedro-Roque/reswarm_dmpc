@@ -21,8 +21,9 @@ from reswarm_dmpc.util import *
 class MPC(object):
 
     def __init__(self, model, dynamics,
-                 Q, P, R, horizon=10,
-                 ulb=None, uub=None, xlb=None, xub=None,
+                 Q, R, P,
+                 ulb, uub, xlb, xub,
+                 horizon=10,
                  terminal_constraint=None):
         """
         MPC Controller Class for setpoint stabilization
@@ -70,9 +71,10 @@ class MPC(object):
         self.ocp.model = AcadosModel()
         self.ocp.model.f_expl_expr = model.f_expl
         self.ocp.model.f_impl_expr = model.f_impl
+        self.ocp.model.disc_dyn_expr = model.disc_dyn_expr
         self.ocp.model.x = model.x
         self.ocp.model.u = model.u
-        self.ocp.model.xdot = model.xdot
+        # self.ocp.model.xdot = model.xdot
         self.ocp.model.name = model.name
 
         # Set cost function
@@ -103,15 +105,6 @@ class MPC(object):
         self.ocp.model.cost_expr_ext_cost_e = self.terminal_cost(self.x_var,
                                                                  self.xr_var,
                                                                  self.P)
-        # Parse system constraints
-        if xub is None:
-            xub = np.full((self.Nx), np.inf)
-        if xlb is None:
-            xlb = np.full((self.Nx), -np.inf)
-        if uub is None:
-            uub = np.full((self.Nu), np.inf)
-        if ulb is None:
-            ulb = np.full((self.Nu), -np.inf)
 
         # Set constraints
         self.ocp.constraints.constr_type = 'BGH'
@@ -137,7 +130,7 @@ class MPC(object):
         self.ocp.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'
         self.ocp.solver_options.hessian_approx = 'GAUSS_NEWTON'
         self.ocp.solver_options.integrator_type = 'ERK'
-        self.ocp.solver_options.nlp_solver_type = 'SQP'  # SQP_RTI
+        self.ocp.solver_options.nlp_solver_type = 'SQP_RTI'  # SQP_RTI
 
         self.ocp.solver_options.qp_solver_cond_N = self.Nt
         self.ocp.dims.N = self.Nt

@@ -10,13 +10,13 @@ from reswarm_dmpc.simulation import EmbeddedSimEnvironment
 abee = Astrobee(h=0.1)
 
 # Instantiate controller
-Q = np.diag([10, 10, 10, 0, 0, 0, 10, 10, 10, 0, 0, 0])
-R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])*0.0
-P = Q*200
+Q = np.diag([10, 10, 10, 1, 1, 1, 10, 10, 10, 1, 1, 1])
+R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])*0.1
+P = Q*10
 
 ctl = MPC(model=abee,
           dynamics=abee.model,
-          horizon=3,
+          horizon=2,
           Q=Q, R=R, P=P,
           ulb=np.array([-1, -1, -1, -0.1, -0.1, -0.1]),
           uub=np.array([1, 1, 1, 0.1, 0.1, 0.1]),

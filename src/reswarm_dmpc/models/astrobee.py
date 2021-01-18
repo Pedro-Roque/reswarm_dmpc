@@ -57,6 +57,7 @@ class Astrobee(object):
             self.f_expl = self.astrobee_dynamics(self.x, self.u)
             self.f_impl = self.xdot - self.f_expl
             self.z = []
+            self.disc_dyn_expr = self.rk4_integrator(self.astrobee_dynamics)
         else:
             self.model = self.rk4_integrator(self.astrobee_dynamics)
 
@@ -87,7 +88,7 @@ class Astrobee(object):
         # State extraction
         p = x[0:3]
         v = x[3:6]
-        q = x[6:10]
+        q = x[6:10]/ca.norm_2(x[6:10])
         w = x[10:]
 
         # 3D Force
