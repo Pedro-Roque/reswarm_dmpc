@@ -140,29 +140,20 @@ int main()
     double p[13];
     
     p[0] = 0;
-    
     p[1] = 0;
-    
-    p[2] = 0;
-    
+    p[2] = 0.1;
+
     p[3] = 0;
-    
     p[4] = 0;
-    
     p[5] = 0;
     
     p[6] = 0;
-    
     p[7] = 0;
-    
-    p[8] = 0.216;
-    
-    p[9] = 0.976;
+    p[8] = 0;
+    p[9] = 1;
     
     p[10] = 0;
-    
     p[11] = 0;
-    
     p[12] = 0;
     
 
@@ -213,6 +204,7 @@ int main()
                     xtraj[13*ii+3], xtraj[13*ii+4], xtraj[13*ii+5],
                     xtraj[13*ii+6], xtraj[13*ii+7], xtraj[13*ii+8], xtraj[13*ii+9],
                     xtraj[13*ii+10], xtraj[13*ii+11], xtraj[13*ii+12]);
+    
     //d_print_exp_tran_mat( 13, 5+1, xtraj, 13 );
     printf("\n--- utraj ---\n");
     for (int ii = 0; ii <= nlp_dims->N; ii++)
