@@ -10,6 +10,7 @@ from reswarm_dmpc.util import *
 
 class Astrobee(object):
     def __init__(self,
+                 iface='acados',
                  mass=7,
                  inertia=np.diag([0.1083, 0.1083, 0.1083]),
                  h=0.01):
@@ -25,7 +26,7 @@ class Astrobee(object):
         """
 
         # Model
-        self.solver = 'acados'
+        self.solver = iface
         self.nonlinear_model = self.astrobee_dynamics
         self.model = None
         self.n = 13
@@ -88,7 +89,7 @@ class Astrobee(object):
         # State extraction
         p = x[0:3]
         v = x[3:6]
-        q = x[6:10]/ca.norm_2(x[6:10])
+        q = x[6:10] #/ca.norm_2(x[6:10])
         w = x[10:]
 
         # 3D Force
@@ -130,7 +131,9 @@ class Astrobee(object):
         k4 = dynamics(x + self.dt * k3, u)
         xdot = x0 + self.dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
 
-        # Normalize quaternion: TODO(Pedro-Roque): check how to normalize
+        # Normalize quaternion: TODO(Pedro-Roque): check best way to propagate this
+        # xdot[6:10] = xdot[6:10]/ca.norm_2(xdot[6:10])
+        # xdot[6:10] = ca.mtimes((ca.MX.eye(4) + (self.dt/2.0)*self.omega_mat(u[3:])), x[6:10])
         # xdot[6:10] = xdot[6:10]/ca.norm_2(xdot[6:10])
         fun_options = {
             "jit": False,
@@ -177,6 +180,41 @@ class Astrobee(object):
 
         return Xi
 
+    def omega_mat(self, w):
+        """
+        Get quaternion Omega matrix. Ref:
+        "Indirect Kalman Filter for 3D Attitude Estimation"
+        Nikolas Trawny and Stergios I. Roumeliotis
+
+        :param w: angular velocity vector
+        :type w: ca.MX or ca.DM
+        :return: omega matrix 4x4
+        :rtype: ca.MX
+        """
+        omega = ca.MX.zeros(4, 4)
+
+        w_x = w[0]
+        w_y = w[1]
+        w_z = w[2]
+
+        omega[3, 1] = w_z
+        omega[3, 2] = -w_y
+        omega[3, 3] = w_x
+
+        omega[0, 0] = -w_z
+        omega[0, 2] = w_x
+        omega[0, 3] = w_y
+
+        omega[1, 0] = w_y
+        omega[1, 1] = -w_x
+        omega[1, 3] = w_z
+
+        omega[2, 0] = -w_x
+        omega[2, 1] = -w_y
+        omega[2, 2] = -w_z
+
+        return omega
+
     def get_trajectory(self, x0, t0, npoints):
         """
         Generate trajectory to be followed.
@@ -198,25 +236,29 @@ class Astrobee(object):
 
             # Trajectory reference: oscillate in Y with vy
             t = np.linspace(t0, t0+(npoints-1)*self.dt, npoints)
+            vx = A*np.cos(2*np.pi*f*t) #0.05*np.ones(npoints)
             vy = A*np.sin(2*np.pi*f*t)
-            vx = 0.05*np.ones(npoints)
+            vz = 0.05*np.ones(npoints)
 
             # Once we have a velocity profile, we can create the
             # position references
             x = np.array([x0[0]])
             y = np.array([x0[1]])
+            z = np.array([x0[2]])
+
             for i in range(npoints-1):
                 x = np.append(x, x[-1]+vx[i]*self.dt)
-                y = np.append(y, y[-1]+vx[i]*self.dt)
-
+                y = np.append(y, y[-1]+vy[i]*self.dt)
+                z = np.append(z, z[-1]+vz[i]*self.dt)
             # Create trajectory matrix
             x_sp = np.array([x])
             x_sp = np.append(x_sp, [y], axis=0)
-            x_sp = np.append(x_sp, np.zeros((1, npoints)), axis=0)
+            # x_sp = np.append(x_sp, np.zeros((1, npoints)), axis=0)
+            x_sp = np.append(x_sp, [z], axis=0)
             x_sp = np.append(x_sp, [vx], axis=0)
             x_sp = np.append(x_sp, [vy], axis=0)
+            x_sp = np.append(x_sp, [vz], axis=0)  # np.zeros((1, npoints))
             x_sp = np.append(x_sp, np.zeros((4, npoints)), axis=0)
-            x_sp = np.append(x_sp, np.ones((1, npoints)), axis=0)
             x_sp = np.append(x_sp, np.zeros((3, npoints)), axis=0)
 
         return x_sp

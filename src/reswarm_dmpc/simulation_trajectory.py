@@ -5,6 +5,7 @@ from __future__ import print_function
 import numpy as np
 import casadi as ca
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import time
 
 
@@ -50,7 +51,10 @@ class EmbeddedSimEnvironment(object):
         slv_time = np.empty((1, 1))
         # Start figure
         if len(x0) == 13:
-            fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5)
+            fig1, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5)
+            fig2 = plt.figure()
+            ax6 = fig2.add_subplot(111, projection='3d')
+            plt.ion()
         else:
             print("Check your state dimensions.")
             exit()
@@ -61,16 +65,13 @@ class EmbeddedSimEnvironment(object):
             x = np.array([y_vec[:, -1]]).T
 
             # Get control input and obtain next state
-            u, ref = self.controller(x, i*self.dt)
-            ref_vec = np.append(ref_vec, np.array([ref]).T, axis=1)
+            u, ref, pred_x, pred_ref = self.controller(x, i*self.dt)
             slv_time = np.append(slv_time,
                                  self.ctl_class.get_last_solve_time())
             x_next = self.dynamics(x, u)
-
-            # Store data
-            t = np.append(t, i*self.dt)
-            y_vec = np.append(y_vec, np.array(x_next), axis=1)
-            u_vec = np.append(u_vec, np.array(u), axis=1)
+            ref_vec = np.append(ref_vec, np.array([ref]).T, axis=1)
+            if i == 0:
+                ref_vec = np.delete(ref_vec, 0, axis=1)
 
             # Get plot window values:
             if self.plt_window != float("inf"):
@@ -78,6 +79,21 @@ class EmbeddedSimEnvironment(object):
                           else int(i + 1 - self.plt_window/self.dt)
             else:
                 l_wnd = 0
+
+            # Plot X-Y plane
+            ax6.clear()
+            ax6.set_title("3D Trajectory")
+            x_pred = np.zeros(pred_ref.shape)
+            for k in range(pred_ref.shape[1]):
+                x_pred[:, k] = np.asarray(pred_x[k]).reshape(13,)
+
+            ax6.plot(y_vec[0, l_wnd:-1], y_vec[1, l_wnd:-1], y_vec[2, l_wnd:-1], color="r")
+            ax6.plot(x_pred[0, :], x_pred[1, :], x_pred[2, :], color="r")
+            ax6.plot(pred_ref[0, :], pred_ref[1, :], pred_ref[2, :], color="b")
+            ax6.legend(["Past Trajectory", "Reference", "Predicted Trajectory"])
+            ax6.set_xlabel("X [m]")
+            ax6.set_ylabel("Y [m]")
+            ax6.grid()
 
             # Plot type
             ax1.clear()
@@ -127,8 +143,14 @@ class EmbeddedSimEnvironment(object):
             ax5.set_ylabel("Control T [Nm]")
             ax5.grid()
 
-        plt.show()
-        plt.pause(0.01)
+            plt.pause(0.01)
+
+            # Store data
+            t = np.append(t, i*self.dt)
+            y_vec = np.append(y_vec, np.array(x_next), axis=1)
+            u_vec = np.append(u_vec, np.array(u), axis=1)
+
+        plt.show(block=True)
 
         return t, y_vec, u_vec, np.average(slv_time)
 

@@ -173,7 +173,7 @@ class MPC(object):
         """
         Helper function to set the dictionaries for solver and function options
         """
-        self.set_jit = True
+        self.set_jit = False
         # Functions options
         self.fun_options = {
             "jit": self.set_jit,

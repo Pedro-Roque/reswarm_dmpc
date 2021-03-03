@@ -45,7 +45,7 @@ link_directories(${NMPC_controller} ${acados_lib})
 
 # NMPC node
 
-add_definitions( "-fPIC -std=c99 " ) # -O3
+add_definitions( "-fPIC" ) # -O3
 add_library(casadi_lib 
             ${NMPC_controller}/astrobee_model/astrobee_expl_ode_fun.c 
             ${NMPC_controller}/astrobee_model/astrobee_expl_vde_forw.c
