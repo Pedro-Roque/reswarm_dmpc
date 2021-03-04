@@ -244,8 +244,8 @@ class TMPC(object):
         # Options for IPOPT Solver
         # -> IPOPT
         self.sol_options_ipopt = {
-            'ipopt.max_iter': 1000, # 20
-            'ipopt.max_resto_iter': 500, # 30
+            'ipopt.max_iter': 1000,  # 20
+            'ipopt.max_resto_iter': 500,  # 30
             'ipopt.print_level': 0,
             'ipopt.mu_init': 0.01,
             'ipopt.tol': 1e-4,
