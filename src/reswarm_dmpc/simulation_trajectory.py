@@ -10,7 +10,8 @@ import time
 
 
 class EmbeddedSimEnvironment(object):
-    def __init__(self, model, dynamics, ctl_class, controller, time=100.0):
+    def __init__(self, model, dynamics, ctl_class, controller,
+                 noise=None, time=100.0):
         """
         Embedded simulation environment. Simulates the syste given
         dynamics and a control law, plots in matplotlib.
@@ -30,6 +31,7 @@ class EmbeddedSimEnvironment(object):
         self.controller = controller
         self.total_sim_time = time  # seconds
         self.dt = self.model.dt
+        self.noise = noise
         self.estimation_in_the_loop = False
         self.using_trajectory_ref = False
 
@@ -70,7 +72,16 @@ class EmbeddedSimEnvironment(object):
 
             # Get control input and obtain next state
             u, ref, pred_x, pred_ref = self.controller(x, i*self.dt)
-            x_next = self.dynamics(x, u)
+            if self.noise is not None:
+                noise_p = np.random.normal(0, self.noise["pos"], (3, 1))
+                noise_v = np.random.normal(0, self.noise["vel"], (3, 1))
+                noise_q = np.random.normal(0, self.noise["att"], (4, 1))
+                noise_w = np.random.normal(0, self.noise["ang"], (3, 1))
+                noise_vec = np.concatenate((noise_p, noise_v, noise_q, noise_w), axis=0)
+            else:
+                noise_vec = np.zeros((13, 1))
+            x_next = self.dynamics(x, u) + noise_vec
+            x_next[6:10] = x_next[6:10]/np.linalg.norm(x_next[6:10])
             
             # Get data to log
             u = np.asarray(u).reshape(6, 1)

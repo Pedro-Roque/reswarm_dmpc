@@ -32,6 +32,8 @@ sim_env_full = EmbeddedSimEnvironment(model=abee,
                                       dynamics=abee.model,
                                       ctl_class=ctl,
                                       controller=ctl.mpc_controller,
+                                      noise={"pos": 0.001, "vel": 0.005,
+                                             "att": 0.0001, "ang": 0.005},
                                       time=20)
 sim_env_full.use_trajectory_control(True)
 sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
