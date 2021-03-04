@@ -11,7 +11,7 @@ abee = Astrobee(h=0.05, iface='casadi')
 
 # Instantiate controller (to track a velocity)
 Q = np.diag([10, 10, 10, 100, 100, 100, 100, 100, 100, 10, 10, 10])
-R = np.diag([0.1, 0.1, 0.1, 0.5, 0.5, 0.5])*0
+R = np.diag([0.1, 0.1, 0.1, 0.5, 0.5, 0.5])
 P = Q*100
 
 ctl = TMPC(model=abee,
@@ -27,7 +27,7 @@ ctl = TMPC(model=abee,
                 1, 1, 1, 1, 0.1, 0.1, 0.1])
 
 # Sinusoidal Trajectory
-abee.set_trajectory_type("Sinusoidal")
+abee.set_trajectory_type("SinusoidalOffset")
 sim_env_full = EmbeddedSimEnvironment(model=abee,
                                       dynamics=abee.model,
                                       ctl_class=ctl,

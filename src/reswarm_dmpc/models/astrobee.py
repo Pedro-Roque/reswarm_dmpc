@@ -41,8 +41,8 @@ class Astrobee(object):
         self.inertia = inertia
 
         # Barrier properties
-        self.eps_p = 0.1
-        self.eps_v = 0.05
+        self.eps_p = 0.2
+        self.eps_v = 0.1
         self.hp_m = 1.0
         self.hp_exp = 1.0
 
@@ -250,7 +250,7 @@ class Astrobee(object):
             f = 0.1
             A = 0.1
 
-            # Trajectory reference: oscillate in Y with vy
+            # Trajectory reference
             t = np.linspace(t0, t0+(npoints-1)*self.dt, npoints)
             vx = A*np.cos(2*np.pi*f*t)
             vy = A*np.sin(2*np.pi*f*t)
@@ -276,6 +276,48 @@ class Astrobee(object):
             x_sp = np.append(x_sp, np.zeros((3, npoints)), axis=0)
             x_sp = np.append(x_sp, np.ones((1, npoints)), axis=0)
             x_sp = np.append(x_sp, np.zeros((3, npoints)), axis=0)
+
+        if self.trajectory_type == "SinusoidalOffset":
+            if t0 == 0.0:
+                # Generate whole trajectory for 20 seconds
+                # Trajectory params
+                f = 0.1
+                A = 0.1
+
+                # Trajectory reference
+                # Get npoints
+                total_trajectory_time = 25  # [s]
+                gen_points = int(total_trajectory_time/self.dt)
+                t = np.linspace(t0, t0+(gen_points-1)*self.dt, gen_points)
+                vx = A*np.cos(2*np.pi*f*t)
+                vy = A*np.sin(2*np.pi*f*t)
+                vz = 0.05*np.ones(gen_points)
+
+                # Once we have a velocity profile, we can create the
+                # position references
+                x = np.array([-0.1])
+                y = np.array([0.5])
+                z = np.array([0])
+
+                for i in range(gen_points-1):
+                    x = np.append(x, x[-1]+vx[i]*self.dt)
+                    y = np.append(y, y[-1]+vy[i]*self.dt)
+                    z = np.append(z, z[-1]+vz[i]*self.dt)
+                # Create trajectory matrix
+                x_sp = np.array([x])
+                x_sp = np.append(x_sp, [y], axis=0)
+                x_sp = np.append(x_sp, [z], axis=0)
+                x_sp = np.append(x_sp, [vx], axis=0)
+                x_sp = np.append(x_sp, [vy], axis=0)
+                x_sp = np.append(x_sp, [vz], axis=0)
+                x_sp = np.append(x_sp, np.zeros((3, gen_points)), axis=0)
+                x_sp = np.append(x_sp, np.ones((1, gen_points)), axis=0)
+                x_sp = np.append(x_sp, np.zeros((3, gen_points)), axis=0)
+                self.full_trajectory = np.array(x_sp)
+
+                x_sp = x_sp[:, 0:npoints]
+            else:
+                x_sp = self.full_trajectory[:, int(t0/self.dt):(int(t0/self.dt) + npoints)]
 
         return x_sp
 
