@@ -110,7 +110,7 @@ class Astrobee(object):
         # State extraction
         p = x[0:3]
         v = x[3:6]
-        q = x[6:10] #/ca.norm_2(x[6:10])
+        q = x[6:10]  # /ca.norm_2(x[6:10])
         w = x[10:]
 
         # 3D Force
@@ -152,10 +152,7 @@ class Astrobee(object):
         k4 = dynamics(x + self.dt * k3, u)
         xdot = x0 + self.dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
 
-        # Normalize quaternion: TODO(Pedro-Roque): check best way to propagate this
-        # xdot[6:10] = xdot[6:10]/ca.norm_2(xdot[6:10])
-        # xdot[6:10] = ca.mtimes((ca.MX.eye(4) + (self.dt/2.0)*self.omega_mat(u[3:])), x[6:10])
-        # xdot[6:10] = xdot[6:10]/ca.norm_2(xdot[6:10])
+        # Normalize quaternion: TODO(Pedro-Roque): check best way to propagate
         rk4 = ca.Function('RK4', [x0, u], [xdot], self.fun_options)
 
         return rk4
@@ -253,7 +250,7 @@ class Astrobee(object):
 
             # Trajectory reference: oscillate in Y with vy
             t = np.linspace(t0, t0+(npoints-1)*self.dt, npoints)
-            vx = A*np.cos(2*np.pi*f*t)  # 0.05*np.ones(npoints)
+            vx = A*np.cos(2*np.pi*f*t)
             vy = A*np.sin(2*np.pi*f*t)
             vz = 0.05*np.ones(npoints)
 
@@ -270,12 +267,12 @@ class Astrobee(object):
             # Create trajectory matrix
             x_sp = np.array([x])
             x_sp = np.append(x_sp, [y], axis=0)
-            # x_sp = np.append(x_sp, np.zeros((1, npoints)), axis=0)
             x_sp = np.append(x_sp, [z], axis=0)
             x_sp = np.append(x_sp, [vx], axis=0)
             x_sp = np.append(x_sp, [vy], axis=0)
-            x_sp = np.append(x_sp, [vz], axis=0)  # np.zeros((1, npoints))
-            x_sp = np.append(x_sp, np.zeros((4, npoints)), axis=0)
+            x_sp = np.append(x_sp, [vz], axis=0)
+            x_sp = np.append(x_sp, np.zeros((3, npoints)), axis=0)
+            x_sp = np.append(x_sp, np.ones((1, npoints)), axis=0)
             x_sp = np.append(x_sp, np.zeros((3, npoints)), axis=0)
 
         return x_sp
@@ -290,22 +287,26 @@ class Astrobee(object):
 
         self.trajectory_type = trj_type
 
-    def set_barrier_function(self, hp=None, hpdt=None,
-                             hq=None, hqdt=None):
+    def set_barrier_functions(self, hp=None, hpdt=None,
+                              hq=None, hqdt=None):
         """
-        Method to set the barrier functions.
+        Helper method to set the desired barrier functions.
 
-        :param hp: [description], defaults to None
-        :type hp: [type], optional
-        :param hq: [description], defaults to None
-        :type hq: [type], optional
+        :param hp: position barrier, defaults to None
+        :type hp: ca.MX, optional
+        :param hpdt: time-derivative of hp, defaults to None
+        :type hpdt: ca.MX, optional
+        :param hq: attitude barrier, defaults to None
+        :type hq: ca.MX, optional
+        :param hqdt: time-derivative of hq, defaults to None
+        :type hqdt: ca.MX, optional
         """
 
         if hp is not None and hpdt is not None:
             self.hp = hp
             self.hpdt = hpdt
         else:
-            # Translation barrier
+            # Paper Translation barrier
             u = ca.MX.sym("u", 6, 1)
 
             p = ca.MX.sym("p", 3, 1)
@@ -333,8 +334,7 @@ class Astrobee(object):
             self.hq = hq
             self.hqdt = hqdt
         else:
-            b = 2
-            # Attitude Barrier
+            # Paper Attitude Barrier
             q = ca.MX.sym("q", 4, 1)
             qr = ca.MX.sym("qr", 4, 1)
 
@@ -357,5 +357,5 @@ class Astrobee(object):
             self.hqdt = ca.Function('hpdt', [q, qr, u, w, wr, dot_wr], [hqdt],
                                     self.fun_options)
 
-        vT = 0.0  # set v(T) alpha function
+        vT = 0.0  # TODO(Pedro-Roque): set v(T) alpha function
         self.vT = 0.0

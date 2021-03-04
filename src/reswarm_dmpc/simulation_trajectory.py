@@ -88,11 +88,16 @@ class EmbeddedSimEnvironment(object):
                 x_pred[:, k] = np.asarray(pred_x[k]).reshape(13,)
 
             ax6.plot(y_vec[0, l_wnd:-1], y_vec[1, l_wnd:-1], y_vec[2, l_wnd:-1], color="r")
-            ax6.plot(x_pred[0, :], x_pred[1, :], x_pred[2, :], color="r")
-            ax6.plot(pred_ref[0, :], pred_ref[1, :], pred_ref[2, :], color="b")
+            ax6.plot(x_pred[0, :], x_pred[1, :], x_pred[2, :], color="r",
+                     linestyle='-', marker='o')
+            ax6.plot(pred_ref[0, :], pred_ref[1, :], pred_ref[2, :], color="b",
+                     linestyle='--', marker='x')
             ax6.legend(["Past Trajectory", "Reference", "Predicted Trajectory"])
             ax6.set_xlabel("X [m]")
             ax6.set_ylabel("Y [m]")
+            # ax6.set_xlim(-0.25, 0.25)
+            # ax6.set_ylim(-0.25, 0.25)
+            # ax6.set_zlim(0, 1)
             ax6.grid()
 
             # Plot type
@@ -119,7 +124,8 @@ class EmbeddedSimEnvironment(object):
             q = y_vec[6:10, l_wnd:-1]
             q_des = ref_vec[6:10, l_wnd:-1]
             for j in range(len(q_des.T)):
-                qerr = np.concatenate((qerr, np.array([[1 - np.dot(q[:, j].T, q_des[:, j])**2]])), axis=1)
+                qerr = np.concatenate((qerr, np.array([[1 - np.dot(q[:, j].T,
+                                      q_des[:, j])**2]])), axis=1)
             qerr = qerr[:, 1:]  # Remove quaternion error initialization
             ax3.plot(t[l_wnd:-1], qerr.T)
             ax3.set_xlabel("Time [s]")
@@ -143,7 +149,7 @@ class EmbeddedSimEnvironment(object):
             ax5.set_ylabel("Control T [Nm]")
             ax5.grid()
 
-            plt.pause(0.01)
+            plt.pause(0.001)
 
             # Store data
             t = np.append(t, i*self.dt)
