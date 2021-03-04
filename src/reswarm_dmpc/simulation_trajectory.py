@@ -49,11 +49,15 @@ class EmbeddedSimEnvironment(object):
         ref_vec = np.array([x0]).T
         u_vec = np.array([[0, 0, 0, 0, 0, 0]]).T
         slv_time = np.empty((1, 1))
+        hp_hq_vec = np.empty((2, 1))
         # Start figure
         if len(x0) == 13:
-            fig1, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5)
-            fig2 = plt.figure()
+            fig1, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5)  # state info
+            fig2 = plt.figure()                                # 3D trajectory
             ax6 = fig2.add_subplot(111, projection='3d')
+            fig3 = plt.figure()                                # barrier value
+            ax7 = fig3.add_subplot(211)
+            ax8 = fig3.add_subplot(212)
             plt.ion()
         else:
             print("Check your state dimensions.")
@@ -66,12 +70,20 @@ class EmbeddedSimEnvironment(object):
 
             # Get control input and obtain next state
             u, ref, pred_x, pred_ref = self.controller(x, i*self.dt)
+            x_next = self.dynamics(x, u)
+            
+            # Get data to log
+            u = np.asarray(u).reshape(6, 1)
+            hp, hq = self.model.get_barrier_value(x.reshape(13, 1),
+                                                  ref.reshape(13, 1),
+                                                  u.reshape(6, 1))
             slv_time = np.append(slv_time,
                                  self.ctl_class.get_last_solve_time())
-            x_next = self.dynamics(x, u)
             ref_vec = np.append(ref_vec, np.array([ref]).T, axis=1)
+            hp_hq_vec = np.append(hp_hq_vec, np.array([[hp, hq]]).reshape(2,1), axis=1)
             if i == 0:
                 ref_vec = np.delete(ref_vec, 0, axis=1)
+                hp_hq_vec = np.delete(hp_hq_vec, 0, axis=1)
 
             # Get plot window values:
             if self.plt_window != float("inf"):
@@ -101,7 +113,19 @@ class EmbeddedSimEnvironment(object):
             # ax6.set_zlim(0, 1)
             ax6.grid()
 
-            # Plot type
+            # Plot barrier values
+            ax7.clear()
+            ax8.clear()
+            ax7.set_title("Position and Attitude Barrier Values")
+            ax7.plot(t[l_wnd:-1], hp_hq_vec[0, l_wnd:-1])
+            ax8.plot(t[l_wnd:-1], hp_hq_vec[1, l_wnd:-1])
+            ax7.legend(["Position Barrier"])
+            ax8.legend(["Attitude Barrier"])
+            ax8.set_xlabel("Time [s]")
+            ax7.grid()
+            ax8.grid()
+
+            # Plot state info
             ax1.clear()
             ax1.set_title("Astrobee Testing")
             ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1]-ref_vec[0, l_wnd:-1],

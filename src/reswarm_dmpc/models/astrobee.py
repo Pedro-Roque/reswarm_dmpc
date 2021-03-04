@@ -41,8 +41,8 @@ class Astrobee(object):
         self.inertia = inertia
 
         # Barrier properties
-        self.eps_p = 0.5
-        self.eps_v = 0.1
+        self.eps_p = 0.1
+        self.eps_v = 0.05
         self.hp_m = 1.0
         self.hp_exp = 1.0
 
@@ -361,6 +361,34 @@ class Astrobee(object):
 
         vT = 0.0  # TODO(Pedro-Roque): set v(T) alpha function
         self.vT = 0.0
+
+    def get_barrier_value(self, x_t, x_r, u_t):
+
+        p = x_t[0:3]
+        v = x_t[3:6]
+        q = x_t[6:10]
+        w = x_t[10:]
+
+        pr = x_r[0:3]
+        vr = x_r[3:6]
+        # dot_vr = ca.MX.zeros(3, 1)
+        dot_vr = np.zeros((3, 1))
+        qr = x_r[6:10]
+        wr = x_r[10:]
+        # dot_wr = ca.MX.zeros(3, 1)
+        dot_wr = np.zeros((3, 1))
+
+        u = u_t
+
+        # hp_ineq >= 0
+        hp_ineq = self.hpdt(p, pr, u, v, vr, dot_vr) \
+            + self.hp(p, pr, v, vr)
+
+        # hq_ineq >= 0
+        hq_ineq = self.hqdt(q, qr, u, w, wr, dot_wr) \
+            + self.hq(q, qr, w, wr)
+
+        return hp_ineq, hq_ineq
 
     def test_barrier_functions(self):
         """

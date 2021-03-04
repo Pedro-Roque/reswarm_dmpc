@@ -142,29 +142,17 @@ class TMPC(object):
 
             # ZCBF constraints
             if self.set_zcbf is True:
-                p = x_t[0:3]
-                v = x_t[3:6]
-                q = x_t[6:10]
-                w = x_t[10:]
 
-                pr = x_r[0:3]
-                vr = x_r[3:6]
-                dot_vr = ca.MX.zeros(3, 1)
-                qr = x_r[6:10]
-                wr = x_r[10:]
-                dot_wr = ca.MX.zeros(3, 1)
-
-                u = u_t
                 # Check first time-step barrier certificate to use
                 if t == 0 and self.use_cont_time_guarantee is True:
                     continue
                 else:
-                    con_ineq.append(self.model.hpdt(p, pr, u, v, vr, dot_vr)
-                                    + self.model.hp(p, pr, v, vr))
+                    hp_ineq, hq_ineq = self.model.get_barrier_value(x_t, x_r,
+                                                                    u_t)
+                    con_ineq.append(hp_ineq)
                     con_ineq_lb.append(0)
                     con_ineq_ub.append(ca.inf)
-                    con_ineq.append(self.model.hqdt(q, qr, u, w, wr, dot_wr)
-                                    + self.model.hq(q, qr, w, wr))
+                    con_ineq.append(hq_ineq)
                     con_ineq_lb.append(0)
                     con_ineq_ub.append(ca.inf)
                     pass
