@@ -21,4 +21,8 @@ python2 deps_install.py
 cd reswarm_dmpc
 export $PYTHONPATH="$PYTHONPATH:$(pwd)/src"
 ```
-3. Run the unit tests in the nodes folder
+3. Run the unit tests in the nodes folder. Example:
+```
+cd reswarm_dmpc
+python2 nodes/unit_test_tracking.py
+```
