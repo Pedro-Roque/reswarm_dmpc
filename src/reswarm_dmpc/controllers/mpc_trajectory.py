@@ -160,13 +160,13 @@ class TMPC(object):
                     continue
                 else:
                     con_ineq.append(self.model.hpdt(p, pr, u, v, vr, dot_vr)
-                                    - self.model.hp(p, pr, v, vr))
-                    con_ineq_ub.append(0)
-                    con_ineq_lb.append(-ca.inf)
+                                    + self.model.hp(p, pr, v, vr))
+                    con_ineq_lb.append(0)
+                    con_ineq_ub.append(ca.inf)
                     con_ineq.append(self.model.hqdt(q, qr, u, w, wr, dot_wr)
-                                    - self.model.hq(q, qr, w, wr))
-                    con_ineq_ub.append(0)
-                    con_ineq_lb.append(-ca.inf)
+                                    + self.model.hq(q, qr, w, wr))
+                    con_ineq_lb.append(0)
+                    con_ineq_ub.append(ca.inf)
                     pass
 
             # Objective Function / Cost Function
