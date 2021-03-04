@@ -16,6 +16,10 @@ python2 deps_install.py
 
 ### Usage without ROS:
 1. Clone this repo into a folder in your system (preferably `$HOME`)
+```
+cd $HOME
+git clone https://github.com/Pedro-Roque/reswarm_dmpc.git
+```
 2. Add the `reswarm_dmpc/src` to your `$PYTHONPATH` with:
 ```
 cd reswarm_dmpc
@@ -23,6 +27,5 @@ export $PYTHONPATH="$PYTHONPATH:$(pwd)/src"
 ```
 3. Run the unit tests in the nodes folder. Example:
 ```
-cd reswarm_dmpc
 python2 nodes/unit_test_tracking.py
 ```
