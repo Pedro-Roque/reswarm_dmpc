@@ -21,7 +21,7 @@ from reswarm_dmpc.util import *
 class TMPC(object):
 
     def __init__(self, model, dynamics,
-                 Q, P, R, horizon=10,
+                 Q, P, R, solver_type='sqpmethod', horizon=10,
                  ulb=None, uub=None, xlb=None, xub=None,
                  terminal_constraint=None):
         """
@@ -52,6 +52,7 @@ class TMPC(object):
         """
         self.solve_time = 0.0
         build_solver_time = -time.time()
+        self.solver_type = solver_type
         self.dt = model.dt
         self.Nx = model.n
         self.Nu = model.m
@@ -160,9 +161,16 @@ class TMPC(object):
         self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
         self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
-        self.solver = ca.nlpsol('mpc_solver', 'sqpmethod', nlp,
-                                self.sol_options_sqp)
 
+        # Instantiate solver
+        if self.solver_type == "sqpmethod":
+            self.solver = ca.nlpsol('mpc_solver', 'sqpmethod', nlp,
+                                    self.sol_options_sqp)
+        elif self.solver_type == "ipopt":
+            self.solver = ca.nlpsol('mpc_solver', 'ipopt', nlp,
+                                    self.sol_options_ipopt)
+        else:
+            raise ValueError("Wrong solver selected.")
         build_solver_time += time.time()
         print('\n________________________________________')
         print('# Receding horizon length: %d ' % self.Nt)
@@ -341,8 +349,11 @@ class TMPC(object):
         solve_time = -time.time()
         sol = self.solver(**args)
         solve_time += time.time()
-        # status = self.solver.stats()['return_status'] # IPOPT
-        status = self.solver.stats()['success']  # SCPGEN
+        status = None
+        if self.solver_type == "ipopt":
+            status = self.solver.stats()['return_status']
+        elif self.solver_type == "sqpmethod":
+            status = self.solver.stats()['success']
         optvar = self.opt_var(sol['x'])
         self.solve_time = solve_time
 
