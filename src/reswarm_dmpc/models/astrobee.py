@@ -40,10 +40,31 @@ class Astrobee(object):
         self.mass = mass
         self.inertia = inertia
 
+        # Barrier properties
+        self.eps_p = 0.5
+        self.eps_v = 0.1
+        self.hp_m = 1.0
+        self.hp_exp = 1.0
+
+        self.eps_q = 0.5
+        self.eps_w = 0.1
+        self.hq_m = 1.0
+        self.hq_exp = 1.0
+
+        self.set_casadi_options()
         self.set_dynamics()
         self.test_dynamics()
 
         print("Astrobee class initialized")
+
+    def set_casadi_options(self):
+        """
+        Helper function to set casadi options.
+        """
+        self.fun_options = {
+            "jit": False,
+            "jit_options": {"flags": ["-O2"]}
+        }
 
     def set_dynamics(self):
         """
@@ -135,11 +156,7 @@ class Astrobee(object):
         # xdot[6:10] = xdot[6:10]/ca.norm_2(xdot[6:10])
         # xdot[6:10] = ca.mtimes((ca.MX.eye(4) + (self.dt/2.0)*self.omega_mat(u[3:])), x[6:10])
         # xdot[6:10] = xdot[6:10]/ca.norm_2(xdot[6:10])
-        fun_options = {
-            "jit": False,
-            "jit_options": {"flags": ["-O2"]}
-        }
-        rk4 = ca.Function('RK4', [x0, u], [xdot], fun_options)
+        rk4 = ca.Function('RK4', [x0, u], [xdot], self.fun_options)
 
         return rk4
 
@@ -236,7 +253,7 @@ class Astrobee(object):
 
             # Trajectory reference: oscillate in Y with vy
             t = np.linspace(t0, t0+(npoints-1)*self.dt, npoints)
-            vx = A*np.cos(2*np.pi*f*t) #0.05*np.ones(npoints)
+            vx = A*np.cos(2*np.pi*f*t)  # 0.05*np.ones(npoints)
             vy = A*np.sin(2*np.pi*f*t)
             vz = 0.05*np.ones(npoints)
 
@@ -272,3 +289,73 @@ class Astrobee(object):
         """
 
         self.trajectory_type = trj_type
+
+    def set_barrier_function(self, hp=None, hpdt=None,
+                             hq=None, hqdt=None):
+        """
+        Method to set the barrier functions.
+
+        :param hp: [description], defaults to None
+        :type hp: [type], optional
+        :param hq: [description], defaults to None
+        :type hq: [type], optional
+        """
+
+        if hp is not None and hpdt is not None:
+            self.hp = hp
+            self.hpdt = hpdt
+        else:
+            # Translation barrier
+            u = ca.MX.sym("u", 6, 1)
+
+            p = ca.MX.sym("p", 3, 1)
+            pr = ca.MX.sym("pr", 3, 1)
+
+            v = ca.MX.sym("v", 3, 1)
+            vr = ca.MX.sym("vr", 3, 1)
+
+            dot_vr = ca.MX.sym("dotvr", 3, 1)
+
+            hp = self.eps_p - ca.norm_2(p-pr)**2 \
+                + self.eps_v - ca.norm_2(v-vr)**2
+
+            hpdt = -2*ca.mtimes((p-pr).T, v) + 2*ca.mtimes((p-pr).T, vr) \
+                - 2*ca.mtimes((v-vr).T, u[0:3]/self.mass) \
+                + 2*ca.mtimes((v-vr).T, dot_vr)
+
+            self.hp = ca.Function('hp', [p, pr, v, vr],
+                                        [self.hp_m*hp**self.hp_exp],
+                                  self.fun_options)
+            self.hpdt = ca.Function('hpdt', [p, pr, u, v, vr, dot_vr], [hpdt],
+                                    self.fun_options)
+
+        if hq is not None and hqdt is not None:
+            self.hq = hq
+            self.hqdt = hqdt
+        else:
+            b = 2
+            # Attitude Barrier
+            q = ca.MX.sym("q", 4, 1)
+            qr = ca.MX.sym("qr", 4, 1)
+
+            w = ca.MX.sym("w", 3, 1)
+            wr = ca.MX.sym("wr", 3, 1)
+
+            dot_wr = ca.MX.sym("dotwr", 3, 1)
+
+            hq = self.eps_q - (1 - ca.mtimes(q.T, qr)**2) \
+                + self.eps_w - ca.norm_2(v-vr)**2
+
+            hqdt = ca.mtimes(ca.mtimes(qr.T, self.xi_mat(q)), w) \
+                + ca.mtimes(ca.mtimes(q.T, self.xi_mat(qr)), wr) \
+                - 2*ca.mtimes((w - wr).T,
+                              ca.mtimes(ca.inv(self.inertia), u[3, :])) \
+                + 2*ca.mtimes((w-wr).T, dot_wr)
+
+            self.hq_exp = ca.Function('hp', [q, qr, w, wr], [hq],
+                                      self.fun_options)
+            self.hqdt = ca.Function('hpdt', [q, qr, u, w, wr, dot_wr], [hqdt],
+                                    self.fun_options)
+
+        vT = 0.0  # set v(T) alpha function
+        self.vT = 0.0
