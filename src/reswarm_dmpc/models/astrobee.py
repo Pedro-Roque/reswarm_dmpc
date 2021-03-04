@@ -53,7 +53,9 @@ class Astrobee(object):
 
         self.set_casadi_options()
         self.set_dynamics()
+        self.set_barrier_functions()
         self.test_dynamics()
+        self.test_barrier_functions()
 
         print("Astrobee class initialized")
 
@@ -344,18 +346,56 @@ class Astrobee(object):
             dot_wr = ca.MX.sym("dotwr", 3, 1)
 
             hq = self.eps_q - (1 - ca.mtimes(q.T, qr)**2) \
-                + self.eps_w - ca.norm_2(v-vr)**2
+                + self.eps_w - ca.norm_2(w-wr)**2
 
             hqdt = ca.mtimes(ca.mtimes(qr.T, self.xi_mat(q)), w) \
                 + ca.mtimes(ca.mtimes(q.T, self.xi_mat(qr)), wr) \
                 - 2*ca.mtimes((w - wr).T,
-                              ca.mtimes(ca.inv(self.inertia), u[3, :])) \
+                              ca.mtimes(ca.inv(self.inertia), u[3:])) \
                 + 2*ca.mtimes((w-wr).T, dot_wr)
 
-            self.hq_exp = ca.Function('hp', [q, qr, w, wr], [hq],
+            self.hq = ca.Function('hp', [q, qr, w, wr], [self.hq_m*hq**self.hq_exp],
                                       self.fun_options)
             self.hqdt = ca.Function('hpdt', [q, qr, u, w, wr, dot_wr], [hqdt],
                                     self.fun_options)
 
         vT = 0.0  # TODO(Pedro-Roque): set v(T) alpha function
         self.vT = 0.0
+
+    def test_barrier_functions(self):
+        """
+        Unit test for barrier certificates.
+        """
+
+        # Set variables:
+        p = np.zeros((3, 1))
+        pr = np.zeros((3, 1))
+        v = np.zeros((3, 1))
+        vr = np.zeros((3, 1))
+        dot_vr = np.zeros((3, 1))
+
+        q = np.array([[0, 0, 0, 1]]).reshape(4, 1)
+        qr = np.array([[0, 0, 0, 1]]).reshape(4, 1)
+        w = np.zeros((3, 1))
+        wr = np.zeros((3, 1))
+        dot_wr = np.zeros((3, 1))
+
+        u = np.zeros((6, 1))
+
+        # Position barrier:
+        hp_output = self.hpdt(p, pr, u, v, vr, dot_vr) - self.hp(p, pr, v, vr)
+        hq_output = self.hqdt(q, qr, u, w, wr, dot_wr) - self.hq(q, qr, w, wr)
+        print("# --- Zeroing Control Barrier Functions Test --- #")
+        print("Test at desired reference:")
+        print("Pos Barrier: ", hp_output, "\nAtt Barrier: ", hq_output)
+        p = np.ones((3, 1))*2
+        hp_output = self.hpdt(p, pr, u, v, vr, dot_vr) - self.hp(p, pr, v, vr)
+        hq_output = self.hqdt(q, qr, u, w, wr, dot_wr) - self.hq(q, qr, w, wr)
+        print("Test position far from desired reference:")
+        print("Pos Barrier: ", hp_output, "\nAtt Barrier: ", hq_output)
+        p = np.zeros((3, 1))
+        q = np.array([[0, 1, 0, 0]]).reshape(4, 1)
+        hp_output = self.hpdt(p, pr, u, v, vr, dot_vr) - self.hp(p, pr, v, vr)
+        hq_output = self.hqdt(q, qr, u, w, wr, dot_wr) - self.hq(q, qr, w, wr)
+        print("Test attitude far from desired reference:")
+        print("Pos Barrier: ", hp_output, "\nAtt Barrier: ", hq_output)

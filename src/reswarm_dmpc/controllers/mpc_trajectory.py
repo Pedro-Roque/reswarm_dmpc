@@ -60,6 +60,10 @@ class TMPC(object):
         self.Nt = int(horizon / self.dt)
         self.dynamics = dynamics
 
+        # Initialize barrier variables
+        self.set_zcbf = True
+        self.use_cont_time_guarantee = False
+
         # Initialize variables
         self.Q = ca.MX(Q)
         self.P = ca.MX(P)
@@ -135,6 +139,35 @@ class TMPC(object):
                 con_ineq.append(x_t)
                 con_ineq_ub.append(np.full((self.Nx,), ca.inf))
                 con_ineq_lb.append(xlb)
+
+            # ZCBF constraints
+            if self.set_zcbf is True:
+                p = x_t[0:3]
+                v = x_t[3:6]
+                q = x_t[6:10]
+                w = x_t[10:]
+
+                pr = x_r[0:3]
+                vr = x_r[3:6]
+                dot_vr = ca.MX.zeros(3, 1)
+                qr = x_r[6:10]
+                wr = x_r[10:]
+                dot_wr = ca.MX.zeros(3, 1)
+
+                u = u_t
+                # Check first time-step barrier certificate to use
+                if t == 0 and self.use_cont_time_guarantee is True:
+                    continue
+                else:
+                    con_ineq.append(self.model.hpdt(p, pr, u, v, vr, dot_vr)
+                                    - self.model.hp(p, pr, v, vr))
+                    con_ineq_ub.append(0)
+                    con_ineq_lb.append(-ca.inf)
+                    con_ineq.append(self.model.hqdt(q, qr, u, w, wr, dot_wr)
+                                    - self.model.hq(q, qr, w, wr))
+                    con_ineq_ub.append(0)
+                    con_ineq_lb.append(-ca.inf)
+                    pass
 
             # Objective Function / Cost Function
             obj += self.running_cost(x_t, x_r, self.Q, u_t, self.R)
@@ -223,8 +256,8 @@ class TMPC(object):
         # Options for IPOPT Solver
         # -> IPOPT
         self.sol_options_ipopt = {
-            'ipopt.max_iter': 20,
-            'ipopt.max_resto_iter': 30,
+            'ipopt.max_iter': 1000, # 20
+            'ipopt.max_resto_iter': 500, # 30
             'ipopt.print_level': 0,
             'ipopt.mu_init': 0.01,
             'ipopt.tol': 1e-4,

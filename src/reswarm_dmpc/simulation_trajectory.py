@@ -58,7 +58,7 @@ class EmbeddedSimEnvironment(object):
         else:
             print("Check your state dimensions.")
             exit()
-            
+
         for i in range(sim_loop_length):
             # Translate data to ca.DM
             x = ca.DM(np.size(y_vec, 0), 1).full()
@@ -87,12 +87,13 @@ class EmbeddedSimEnvironment(object):
             for k in range(pred_ref.shape[1]):
                 x_pred[:, k] = np.asarray(pred_x[k]).reshape(13,)
 
-            ax6.plot(y_vec[0, l_wnd:-1], y_vec[1, l_wnd:-1], y_vec[2, l_wnd:-1], color="r")
+            ax6.plot(y_vec[0, l_wnd:-1], y_vec[1, l_wnd:-1], y_vec[2, l_wnd:-1],
+                     color="r")
             ax6.plot(x_pred[0, :], x_pred[1, :], x_pred[2, :], color="r",
                      linestyle='-', marker='o')
             ax6.plot(pred_ref[0, :], pred_ref[1, :], pred_ref[2, :], color="b",
                      linestyle='--', marker='x')
-            ax6.legend(["Past Trajectory", "Reference", "Predicted Trajectory"])
+            ax6.legend(["Past Trajectory", "Predicted Trajectory", "Reference"])
             ax6.set_xlabel("X [m]")
             ax6.set_ylabel("Y [m]")
             # ax6.set_xlim(-0.25, 0.25)

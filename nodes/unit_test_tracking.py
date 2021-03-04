@@ -17,6 +17,7 @@ P = Q*100
 ctl = TMPC(model=abee,
            dynamics=abee.model,
            horizon=.5,
+           solver_type='ipopt',
            Q=Q, R=R, P=P,
            ulb=[-1, -1, -1, -0.1, -0.1, -0.1],
            uub=[1, 1, 1, 0.1, 0.1, 0.1],
