@@ -25,7 +25,9 @@ git clone https://github.com/Pedro-Roque/reswarm_dmpc.git
 cd reswarm_dmpc
 export $PYTHONPATH="$PYTHONPATH:$(pwd)/src"
 ```
-3. Run the unit tests in the nodes folder. Example:
+3. Run the unit tests in the nodes folder with:
 ```
-python2 nodes/unit_test_tracking.py
+cd nodes/
+py.test -l test_astrobee.py
+py.test -l test_mpc.py
 ```
