@@ -109,9 +109,9 @@ class ControllerStabilizationTest(unittest.TestCase):
                                               dynamics=abee.model,
                                               ctl_class=ctl,
                                               controller=ctl.mpc_controller)
-        _, y, _, _ = sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
+        _, yt, _, _ = sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
 
-        self.assertTrue(np.array_equal(np.around(y[:, -1], 2), x_ref))
+        self.assertTrue(np.array_equal(np.around(yt[:, -1], 2), x_ref))
 
     def test_attitude_setpoint(self):
         """
@@ -146,9 +146,9 @@ class ControllerStabilizationTest(unittest.TestCase):
                                               ctl_class=ctl,
                                               controller=ctl.mpc_controller, 
                                               time=20.0)
-        _, y, _, _ = sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
+        _, yq, _, _ = sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
 
-        self.assertTrue(np.array_equal(np.around(y[:, -1], 3), x_ref))
+        self.assertTrue(np.array_equal(np.around(yq[:, -1], 3), x_ref))
 
     def test_pose_setpoint(self):
         """
@@ -160,7 +160,7 @@ class ControllerStabilizationTest(unittest.TestCase):
         abee = Astrobee(h=0.1, iface='casadi')
 
         # Instantiate controller
-        Q = np.diag([10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100])
+        Q = np.diag([100, 100, 100, 10, 10, 10, 10, 10, 10, 100, 100, 100])
         R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])*10
         P = Q*100
 
@@ -182,9 +182,9 @@ class ControllerStabilizationTest(unittest.TestCase):
                                               dynamics=abee.model,
                                               ctl_class=ctl,
                                               controller=ctl.mpc_controller)
-        _, y, _, _ = sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
+        _, yp, _, _ = sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
 
-        self.assertTrue(np.array_equal(np.around(y[:, -1], 2), x_ref))
+        self.assertTrue(np.array_equal(np.around(yp[:, -1], 3), x_ref))
 
 
 if __name__ == '__main__':
