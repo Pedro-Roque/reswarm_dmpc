@@ -54,10 +54,6 @@ class Astrobee(object):
         self.set_casadi_options()
         self.set_dynamics()
         self.set_barrier_functions()
-        self.test_dynamics()
-        self.test_barrier_functions()
-
-        print("Astrobee class initialized")
 
     def set_casadi_options(self):
         """
@@ -87,15 +83,14 @@ class Astrobee(object):
 
         return
 
-    def test_dynamics(self):
+    def test_dynamics(self, state, input):
         """
         Helper function for a simple dynamics test.
         """
         if self.solver != 'acados':
-            x0 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
-            u0 = np.array([0.1, 0.1, 0.1, 0, 0, 0.1])
-            xt_n = self.model(x0, u0)  # state after self.dt seconds
-            print(xt_n)
+            next_state = self.model(state, input)  # state after self.dt
+            next_state[6:10] = next_state[6:10]/ca.norm_2(next_state[6:10])
+            return np.asarray(next_state)
 
     def astrobee_dynamics(self, x, u):
         """
