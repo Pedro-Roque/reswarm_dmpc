@@ -31,3 +31,4 @@ cd nodes/
 py.test -l test_astrobee.py
 py.test -l test_mpc.py
 ```
+Note that these tests are also running using Github Actions at every push to the remote repository.
