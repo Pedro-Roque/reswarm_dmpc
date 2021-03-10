@@ -3,8 +3,8 @@ import numpy as np
 import scipy
 import rospy
 
-from reswarm_dmpc.model import Astrobee
-from reswarm_dmpc.mpc import DMPC
+from reswarm_dmpc.models.astrobee import Astrobee
+from reswarm_dmpc.controllers.mpc import MPC
 from reswarm_dmpc.simulation import EmbeddedSimEnvironment
 
 import geometry_msgs.msg
@@ -54,7 +54,7 @@ class DistributedMPC(object):
                                          geometry_msgs.msg.PoseStamped,
                                          self.pose_sub_cb)
         self.twist_sub = rospy.Subscriber("~twist_topic",
-                                          geometry_msgs.msg.TwistStamped
+                                          geometry_msgs.msg.TwistStamped,
                                           self.twist_sub_cb)
 
         # Publishers
