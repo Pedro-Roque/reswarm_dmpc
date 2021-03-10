@@ -281,8 +281,8 @@ class Astrobee(object):
             if t0 == 0.0:
                 # Generate whole trajectory for 20 seconds
                 # Trajectory params
-                f = 0.1
-                A = 0.1
+                f = 0.01
+                A = 0.01
 
                 # Trajectory reference
                 # Get npoints
@@ -291,12 +291,12 @@ class Astrobee(object):
                 t = np.linspace(t0, t0+(gen_points-1)*self.dt, gen_points)
                 vx = A*np.cos(2*np.pi*f*t)
                 vy = A*np.sin(2*np.pi*f*t)
-                vz = 0.05*np.ones(gen_points)
+                vz = 0.005*np.ones(gen_points)
 
                 # Once we have a velocity profile, we can create the
                 # position references
                 x = np.array([-0.1])
-                y = np.array([0.5])
+                y = np.array([0.1])
                 z = np.array([0])
 
                 for i in range(gen_points-1):

@@ -73,10 +73,10 @@ class EmbeddedSimEnvironment(object):
             # Get control input and obtain next state
             u, ref, pred_x, pred_ref = self.controller(x, i*self.dt)
             if self.noise is not None:
-                noise_p = np.random.normal(0, self.noise["pos"], (3, 1))
-                noise_v = np.random.normal(0, self.noise["vel"], (3, 1))
-                noise_q = np.random.normal(0, self.noise["att"], (4, 1))
-                noise_w = np.random.normal(0, self.noise["ang"], (3, 1))
+                noise_p = np.random.uniform(-self.noise["pos"], self.noise["pos"], (3, 1))
+                noise_v = np.random.uniform(-self.noise["vel"], self.noise["vel"], (3, 1))
+                noise_q = np.random.uniform(-self.noise["att"], self.noise["att"], (4, 1))
+                noise_w = np.random.uniform(-self.noise["ang"], self.noise["ang"], (3, 1))
                 noise_vec = np.concatenate((noise_p, noise_v, noise_q, noise_w), axis=0)
             else:
                 noise_vec = np.zeros((13, 1))
