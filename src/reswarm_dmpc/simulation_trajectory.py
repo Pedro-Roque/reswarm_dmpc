@@ -53,17 +53,18 @@ class EmbeddedSimEnvironment(object):
         slv_time = np.empty((1, 1))
         hp_hq_vec = np.empty((2, 1))
         # Start figure
-        if len(x0) == 13:
-            fig1, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5)  # state info
-            fig2 = plt.figure()                                # 3D trajectory
-            ax6 = fig2.add_subplot(111, projection='3d')
-            fig3 = plt.figure()                                # barrier value
-            ax7 = fig3.add_subplot(211)
-            ax8 = fig3.add_subplot(212)
-            plt.ion()
-        else:
-            print("Check your state dimensions.")
-            exit()
+        if self.plot is True:
+            if len(x0) == 13:
+                fig1, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5)  # state info
+                fig2 = plt.figure()                                # 3D trajectory
+                ax6 = fig2.add_subplot(111, projection='3d')
+                fig3 = plt.figure()                                # barrier value
+                ax7 = fig3.add_subplot(211)
+                ax8 = fig3.add_subplot(212)
+                plt.ion()
+            else:
+                print("Check your state dimensions.")
+                exit()
 
         for i in range(sim_loop_length):
             # Translate data to ca.DM
