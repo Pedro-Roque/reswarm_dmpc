@@ -9,7 +9,8 @@ import time
 
 
 class EmbeddedSimEnvironment(object):
-    def __init__(self, model, dynamics, ctl_class, controller, time=100.0):
+    def __init__(self, model, dynamics, ctl_class, controller, 
+                 time=100.0, plot=False):
         """
         Embedded simulation environment. Simulates the syste given
         dynamics and a control law, plots in matplotlib.
@@ -31,6 +32,7 @@ class EmbeddedSimEnvironment(object):
         self.dt = self.model.dt
         self.estimation_in_the_loop = False
         self.using_trajectory_ref = False
+        self.plot = plot
 
         # Plotting definitions
         self.plt_window = float("inf")  # running plot window [s]/float("inf")
@@ -48,12 +50,14 @@ class EmbeddedSimEnvironment(object):
         ref_vec = np.array([x0]).T
         u_vec = np.array([[0, 0, 0, 0, 0, 0]]).T
         slv_time = np.empty((1, 1))
+        
         # Start figure
-        if len(x0) == 13:
-            fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5)
-        else:
-            print("Check your state dimensions.")
-            exit()
+        if self.plot is True:
+            if len(x0) == 13:
+                fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5)
+            else:
+                print("Check your state dimensions.")
+                exit()
             
         for i in range(sim_loop_length):
             # Translate data to ca.DM
@@ -73,62 +77,63 @@ class EmbeddedSimEnvironment(object):
             u_vec = np.append(u_vec, np.array(u), axis=1)
 
             # Get plot window values:
-            if self.plt_window != float("inf"):
-                l_wnd = 0 if int(i+1 - self.plt_window/self.dt) < 1 \
-                          else int(i + 1 - self.plt_window/self.dt)
-            else:
-                l_wnd = 0
+            if self.plot is True:
+                if self.plt_window != float("inf"):
+                    l_wnd = 0 if int(i+1 - self.plt_window/self.dt) < 1 \
+                            else int(i + 1 - self.plt_window/self.dt)
+                else:
+                    l_wnd = 0
 
-            # Plot type
-            ax1.clear()
-            ax1.set_title("Astrobee Testing")
-            ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1]-ref_vec[0, l_wnd:-1],
-                     t[l_wnd:-1], y_vec[1, l_wnd:-1]-ref_vec[1, l_wnd:-1],
-                     t[l_wnd:-1], y_vec[2, l_wnd:-1]-ref_vec[2, l_wnd:-1])
-            ax1.legend(["e-x", "e-y", "e-z"])
-            ax1.set_ylabel("Error [m]")
-            ax1.grid()
+                # Plot type
+                ax1.clear()
+                ax1.set_title("Astrobee Testing")
+                ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1]-ref_vec[0, l_wnd:-1],
+                        t[l_wnd:-1], y_vec[1, l_wnd:-1]-ref_vec[1, l_wnd:-1],
+                        t[l_wnd:-1], y_vec[2, l_wnd:-1]-ref_vec[2, l_wnd:-1])
+                ax1.legend(["e-x", "e-y", "e-z"])
+                ax1.set_ylabel("Error [m]")
+                ax1.grid()
 
-            ax2.clear()
-            ax2.plot(t[l_wnd:-1], y_vec[3, l_wnd:-1]-ref_vec[3, l_wnd:-1],
-                     t[l_wnd:-1], y_vec[4, l_wnd:-1]-ref_vec[4, l_wnd:-1],
-                     t[l_wnd:-1], y_vec[5, l_wnd:-1]-ref_vec[5, l_wnd:-1])
-            ax2.legend(["e-vx", "e-vy", "e-vz"])
-            ax2.set_ylabel("Error [m/s]")
-            ax2.grid()
+                ax2.clear()
+                ax2.plot(t[l_wnd:-1], y_vec[3, l_wnd:-1]-ref_vec[3, l_wnd:-1],
+                        t[l_wnd:-1], y_vec[4, l_wnd:-1]-ref_vec[4, l_wnd:-1],
+                        t[l_wnd:-1], y_vec[5, l_wnd:-1]-ref_vec[5, l_wnd:-1])
+                ax2.legend(["e-vx", "e-vy", "e-vz"])
+                ax2.set_ylabel("Error [m/s]")
+                ax2.grid()
 
-            # Plot attitude
-            ax3.clear()
-            qerr = np.array([[0]])
-            q = y_vec[6:10, l_wnd:-1]
-            q_des = ref_vec[6:10, l_wnd:-1]
-            for j in range(len(q_des.T)):
-                qerr = np.concatenate((qerr, np.array([[1 - np.dot(q[:, j].T, q_des[:, j])**2]])), axis=1)
-            qerr = qerr[:, 1:]  # Remove quaternion error initialization
-            ax3.plot(t[l_wnd:-1], qerr.T)
-            ax3.set_xlabel("Time [s]")
-            ax3.set_ylabel("Attitude Error [norm-u]")
-            ax3.grid()
+                # Plot attitude
+                ax3.clear()
+                qerr = np.array([[0]])
+                q = y_vec[6:10, l_wnd:-1]
+                q_des = ref_vec[6:10, l_wnd:-1]
+                for j in range(len(q_des.T)):
+                    qerr = np.concatenate((qerr, np.array([[1 - np.dot(q[:, j].T, q_des[:, j])**2]])), axis=1)
+                qerr = qerr[:, 1:]  # Remove quaternion error initialization
+                ax3.plot(t[l_wnd:-1], qerr.T)
+                ax3.set_xlabel("Time [s]")
+                ax3.set_ylabel("Attitude Error [norm-u]")
+                ax3.grid()
 
-            # Plot controls
-            ax4.clear()
-            ax4.plot(t[l_wnd:-1], u_vec[0, l_wnd:-1],
-                     t[l_wnd:-1], u_vec[1, l_wnd:-1],
-                     t[l_wnd:-1], u_vec[2, l_wnd:-1])
-            ax4.set_xlabel("Time [s]")
-            ax4.set_ylabel("Control F [N]")
-            ax4.grid()
+                # Plot controls
+                ax4.clear()
+                ax4.plot(t[l_wnd:-1], u_vec[0, l_wnd:-1],
+                        t[l_wnd:-1], u_vec[1, l_wnd:-1],
+                        t[l_wnd:-1], u_vec[2, l_wnd:-1])
+                ax4.set_xlabel("Time [s]")
+                ax4.set_ylabel("Control F [N]")
+                ax4.grid()
 
-            ax5.clear()
-            ax5.plot(t[l_wnd:-1], u_vec[3, l_wnd:-1],
-                     t[l_wnd:-1], u_vec[4, l_wnd:-1],
-                     t[l_wnd:-1], u_vec[5, l_wnd:-1])
-            ax5.set_xlabel("Time [s]")
-            ax5.set_ylabel("Control T [Nm]")
-            ax5.grid()
+                ax5.clear()
+                ax5.plot(t[l_wnd:-1], u_vec[3, l_wnd:-1],
+                        t[l_wnd:-1], u_vec[4, l_wnd:-1],
+                        t[l_wnd:-1], u_vec[5, l_wnd:-1])
+                ax5.set_xlabel("Time [s]")
+                ax5.set_ylabel("Control T [Nm]")
+                ax5.grid()
 
-        plt.show()
-        plt.pause(0.01)
+        if self.plot is True:
+            plt.show()
 
         return t, y_vec, u_vec, np.average(slv_time)
 
