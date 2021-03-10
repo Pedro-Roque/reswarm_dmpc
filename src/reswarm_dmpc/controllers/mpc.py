@@ -64,7 +64,7 @@ class MPC(object):
 
         self.set_options_dicts()
         self.set_cost_functions()
-        self.test_cost_functions(Q, R, P)
+
         self.x_sp = None
 
         if xub is None:
