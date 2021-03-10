@@ -12,6 +12,9 @@ class ControllerStabilizationTest(unittest.TestCase):
     """
 
     def test_cost_function(self):
+        """
+        Test case for cost function evaluation.
+        """
 
         abee = Astrobee(h=0.2, iface='casadi')
 
@@ -41,6 +44,36 @@ class ControllerStabilizationTest(unittest.TestCase):
         tc = ctl.terminal_cost(x, xr, P)
 
         self.assertTrue(rc == 0.0 and tc == 0.0)
+
+    def test_setpoint_set(self):
+        """
+        Test setpoint setting function.
+        """
+
+        abee = Astrobee(h=0.2, iface='casadi')
+
+        # Instantiate controller
+        Q = np.diag([10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100])
+        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])*10
+        P = Q*100
+
+        ctl = MPC(model=abee,
+                  dynamics=abee.model,
+                  horizon=.5,
+                  Q=Q, R=R, P=P,
+                  ulb=[-1, -1, -1, -0.1, -0.1, -0.1],
+                  uub=[1, 1, 1, 0.1, 0.1, 0.1],
+                  xlb=[-1, -1, -1, -0.1, -0.1, -0.1,
+                       -1, -1, -1, -1, -0.1, -0.1, -0.1],
+                  xub=[1, 1, 1, 0.1, 0.1, 0.1,
+                       1, 1, 1, 1, 0.1, 0.1, 0.1])
+
+        # Set reference
+        xr = np.zeros((13, 1))
+        xr[10] = 1
+        ctl.set_reference(xr)
+
+        self.assertTrue(np.array_equal(ctl.x_sp, xr))
 
     def test_translation_setpoint(self):
         """
