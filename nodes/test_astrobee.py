@@ -13,7 +13,9 @@ class AstrobeeTestClass(unittest.TestCase):
     def test_dynamics_steady_state(self):
         """
         Test discrete-dynamics function.
-        Check steady-state.
+
+        Checks if the system remains at steady-state
+        with a steady-state input.
         """
         abee = Astrobee(h=0.2, iface='casadi')
         x0 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
@@ -28,7 +30,12 @@ class AstrobeeTestClass(unittest.TestCase):
     def test_dynamics_input(self):
         """
         Test discrete-dynamics function.
-        Check behavior with system input.
+
+        Checks if the system achieves the expected setpoint,
+        x1_correct, with the specified input and initial condition.
+
+        x1_correct is obtained using the discrete-time dynamics of the system
+        in a nominal operation.
         """
         abee = Astrobee(h=0.2, iface='casadi')
         x0 = np.array([0.1, -0.1, 1, 0.01, 0.1, 0.02, 0, 0, 0, 1, 0.3, 0.5, 0.1])
@@ -47,6 +54,10 @@ class AstrobeeTestClass(unittest.TestCase):
     def test_set_trajectory_method(self):
         """
         Check trajectory changing method.
+
+        Validates a trajectory variable change when using the
+        set_trajectory_type method, that should change the internal
+        trajectory_type variable. 
         """
         abee = Astrobee(h=0.2, iface='casadi')
         abee.set_trajectory_type("SinusoidalOffset")
@@ -57,6 +68,9 @@ class AstrobeeTestClass(unittest.TestCase):
         """
         Check trajectory generation method for sinusoidal
         starting at x0.
+
+        The result should equal a predefined set of waypoints, set in
+        traj_correct.
         """
         abee = Astrobee(h=0.2, iface='casadi')
         abee.set_trajectory_type("Sinusoidal")
@@ -85,6 +99,9 @@ class AstrobeeTestClass(unittest.TestCase):
         """
         Check trajectory generation method for sinusoidal
         starting at an offset from x0.
+
+        The result should equal a predefined set of waypoints, set in
+        traj_correct.
         """
         abee = Astrobee(h=0.2, iface='casadi')
         abee.set_trajectory_type("SinusoidalOffset")
@@ -112,6 +129,8 @@ class AstrobeeTestClass(unittest.TestCase):
     def test_barrier_function_safe_state(self):
         """
         Test barrier condition if system is in C.
+
+        If the system is safe, then the barrier values should be positive.
         """
         abee = Astrobee(h=0.2, iface='casadi')
 
@@ -137,6 +156,9 @@ class AstrobeeTestClass(unittest.TestCase):
     def test_barrier_function_unsafe_position(self):
         """
         Test barrier condition if system has an unsafe position.
+
+        The value for the position barrier should be negative, while
+        the value of the attitude barrier remains positive.
         """
 
         abee = Astrobee(h=0.2, iface='casadi')
@@ -163,6 +185,9 @@ class AstrobeeTestClass(unittest.TestCase):
     def test_barrier_function_unsafe_attitude(self):
         """
         Test barrier condition if system has an unsafe attitude.
+
+        The value for the attitude barrier should be negative, while
+        the value of the position barrier remains positive.
         """
 
         abee = Astrobee(h=0.2, iface='casadi')
