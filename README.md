@@ -1,15 +1,21 @@
 # ReSwarm Distributed Nonlinear MPC 
-A package for Robust and Distributed Nonlinear MPC, based on CasADi, ACADOS and ROS frameworks and middleware.
+A package for Robust and Distributed Nonlinear MPC, based on CasADi, ACADOS and ROS frameworks and middleware. 
+
+This package provides system models and Model Predictive Controllers to control an Astrobee free-flyer for both setpoint 
+stabilization and trajectory tracking.
 
 ### Install Dependencies:
-This package runs with Python 2.7.17 (due to ROS Kinetic compatibility). Compatibility with Python3 is looked at, but not assured.
+Required Python version: Python 2.7.17
+Tested on: Ubuntu 18.04 , might work on most Linux-based OSs.
+Python 3 compatibility: looked at, but no guarantees are provided.
+
 To install dependencies, please run:
 ```
 python2 deps_install.py
 ```
 
-### Usage without a Python Environemnt:
-1. Clone this repo into a folder in your system (preferably `$HOME`)
+### Usage with a simple Python Environemnt:
+1. Clone this repository into a folder in your system (preferably `$HOME`)
 ```
 cd $HOME
 git clone https://github.com/Pedro-Roque/reswarm_dmpc.git
@@ -25,7 +31,7 @@ cd nodes/
 py.test -l test_astrobee.py
 py.test -l test_mpc.py
 ```
-**Note** that these tests are also running using Github Actions at every push to the remote repository.
+**Note:** that these tests are also running using Github Actions at every push to the remote repository.
 
 ### Usage with ROS (Robot Operating System):
 1. Clone the repo into a `catkin_ws/src` directory 
