@@ -15,6 +15,8 @@ class ControllerStabilizationTest(unittest.TestCase):
     def test_cost_function(self):
         """
         Test case for cost function evaluation.
+
+        Checks if the cost is zero for a zero-error setpoint.
         """
 
         abee = Astrobee(h=0.2, iface='casadi')
@@ -49,6 +51,9 @@ class ControllerStabilizationTest(unittest.TestCase):
     def test_setpoint_set(self):
         """
         Test setpoint setting function.
+
+        Checks if the internal variable x_sp is set correctly, 
+        when a different setpoint is set.
         """
 
         abee = Astrobee(h=0.2, iface='casadi')
