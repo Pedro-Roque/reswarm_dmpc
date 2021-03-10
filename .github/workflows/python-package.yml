@@ -38,7 +38,7 @@ jobs:
       run: |
         pip install pytest
         pip install pytest-cov
-        echo "::set-env name=PYTHONPATH::home/runner/work/reswarm_dmpc/reswarm_dmpc/src"
+        echo "/home/runner/work/reswarm_dmpc/reswarm_dmpc/src" >> $GITHUB_PATH
         pytest -l nodes/.
 
 
