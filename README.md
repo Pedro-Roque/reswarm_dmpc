@@ -14,7 +14,7 @@ To install dependencies, please run:
 python2 deps_install.py
 ```
 
-### Usage with a simple Python Environemnt:
+### Usage with a simple Python Environment:
 1. Clone this repository into a folder in your system (preferably `$HOME`)
 ```
 cd $HOME
