@@ -21,7 +21,7 @@ class AstrobeeTestClass(unittest.TestCase):
         x1 = abee.test_dynamics(x0, u0)
 
         # Expected solution:
-        x1_correct = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]]).reshape(13,1)
+        x1_correct = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]]).reshape(13, 1)
 
         self.assertTrue(np.array_equal(x1, x1_correct))
 
@@ -40,7 +40,7 @@ class AstrobeeTestClass(unittest.TestCase):
         x1_correct = np.array([[0.10229, -0.07972, 1.00428,
                                 0.01297, 0.1028, 0.02279,
                                 0.03932, 0.05912, 0.01915, 0.99729,
-                                0.48467, 0.68467, 0.28467]]).reshape(13,1)
+                                0.48467, 0.68467, 0.28467]]).reshape(13, 1)
 
         self.assertTrue(np.array_equal(x1_round, x1_correct))
 
