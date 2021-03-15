@@ -52,7 +52,7 @@ class ControllerStabilizationTest(unittest.TestCase):
         """
         Test setpoint setting function.
 
-        Checks if the internal variable x_sp is set correctly, 
+        Checks if the internal variable x_sp is set correctly,
         when a different setpoint is set.
         """
 
@@ -149,7 +149,7 @@ class ControllerStabilizationTest(unittest.TestCase):
         sim_env_full = EmbeddedSimEnvironment(model=abee,
                                               dynamics=abee.model,
                                               ctl_class=ctl,
-                                              controller=ctl.mpc_controller, 
+                                              controller=ctl.mpc_controller,
                                               time=20.0)
         _, yq, _, _ = sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
 
