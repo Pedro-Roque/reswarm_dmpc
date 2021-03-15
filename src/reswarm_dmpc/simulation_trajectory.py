@@ -133,6 +133,8 @@ class EmbeddedSimEnvironment(object):
                 ax7.legend(["Position Barrier"])
                 ax8.legend(["Attitude Barrier"])
                 ax8.set_xlabel("Time [s]")
+                # ax7.set_ylim(-0.1, 2)
+                # ax8.set_ylim(-0.1, 2)
                 ax7.grid()
                 ax8.grid()
 
@@ -183,6 +185,7 @@ class EmbeddedSimEnvironment(object):
                          t[l_wnd:-1], u_vec[5, l_wnd:-1])
                 ax5.set_xlabel("Time [s]")
                 ax5.set_ylabel("Control T [Nm]")
+                ax5.set_ylim(-0.06, 0.06)
                 ax5.grid()
 
                 plt.pause(0.001)
