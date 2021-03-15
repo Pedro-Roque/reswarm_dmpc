@@ -5,8 +5,8 @@ This package provides system models and Model Predictive Controllers to control 
 stabilization and trajectory tracking.
 
 ### Install Dependencies:
-Required Python version: Python 2.7.17
-Tested on: Ubuntu 18.04 , might work on most Linux-based OSs.
+Required Python version: Python 2.7.17  
+Tested on: Ubuntu 18.04 , might work on most Linux-based OSs.  
 Python 3 compatibility: looked at, but no guarantees are provided.
 
 To install dependencies, please run:
@@ -36,4 +36,4 @@ py.test -l test_mpc.py
 ### Usage with ROS (Robot Operating System):
 1. Clone the repo into a `catkin_ws/src` directory 
 2. Build the workspace with `catkin build` in the `catkin_ws` folder
-3. Run the nodes `unit_test_<method>.py` to test different types of MPC strategies using `rosrun reswarm_dmpc unit_test_stabilization.py` or `rosrun reswarm_dmpc unit_test_tracking.py`. 
+3. Run the nodes `unit_test_<method>.py` to test different types of MPC strategies using `rosrun reswarm_dmpc run_stabilization.py` or `rosrun reswarm_dmpc run_tracking.py`. 
