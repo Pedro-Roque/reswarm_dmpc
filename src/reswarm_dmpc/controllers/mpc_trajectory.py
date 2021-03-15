@@ -146,7 +146,7 @@ class TMPC(object):
                 # Check first time-step barrier certificate to use
                 if t == 0 and self.use_cont_time_guarantee is True:
                     continue
-                else:
+                elif t==0:
                     hp_ineq, hq_ineq = self.model.get_barrier_value(x_t, x_r,
                                                                     u_t)
                     con_ineq.append(hp_ineq)
