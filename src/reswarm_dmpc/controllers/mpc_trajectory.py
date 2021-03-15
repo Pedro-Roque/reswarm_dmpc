@@ -140,23 +140,6 @@ class TMPC(object):
                 con_ineq_ub.append(np.full((self.Nx,), ca.inf))
                 con_ineq_lb.append(xlb)
 
-            # ZCBF constraints
-            if self.set_zcbf is True:
-
-                # Check first time-step barrier certificate to use
-                if t == 0 and self.use_cont_time_guarantee is True:
-                    continue
-                elif t==0:
-                    hp_ineq, hq_ineq = self.model.get_barrier_value(x_t, x_r,
-                                                                    u_t)
-                    con_ineq.append(hp_ineq)
-                    con_ineq_lb.append(0)
-                    con_ineq_ub.append(ca.inf)
-                    con_ineq.append(hq_ineq)
-                    con_ineq_lb.append(0)
-                    con_ineq_ub.append(ca.inf)
-                    pass
-
             # Objective Function / Cost Function
             obj += self.running_cost(x_t, x_r, self.Q, u_t, self.R)
 
@@ -232,7 +215,6 @@ class TMPC(object):
             "jit_options": {'compiler': 'ccache gcc',
                             'flags': ["-O2", "-pipe"]},
             'compiler': 'shell',
-            # 'convexify_strategy': '',
             'convexify_margin': 1e-5,
             'jit_temp_suffix': False,
             'print_header': False,
