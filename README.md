@@ -1,7 +1,7 @@
 # ReSwarm Distributed Nonlinear MPC 
 A package for Robust and Distributed Nonlinear MPC, based on CasADi, ACADOS and ROS frameworks and middleware. 
 
-This package provides system models and Model Predictive Controllers to control an Astrobee free-flyer for both setpoint 
+This package provides system models and Model Predictive Controllers to control a [nasa/astrobee](https://github.com/nasa/astrobee) free-flyer for both setpoint 
 stabilization and trajectory tracking.
 
 ### Install Dependencies:
