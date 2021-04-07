@@ -60,12 +60,17 @@ class TMPC(object):
         self.Nt = int(horizon / self.dt)
         self.dynamics = dynamics
 
+        # Assertions for the MPC algorithm assumptions
         # Make sure that time horizon is postive and solver is valid
-        assert horizon > 0, \
-               "horizon has to be a positive float"
+        assert horizon > 0, "horizon has to be a positive float"
         assert solver_type == "sqpmethod" or \
                solver_type == "ipopt", \
                "wrong solver_type. Choose 'sqpmethod' or 'ipopt' "
+
+        # Make sure that weight matrices are positive definite
+        assert np.all(np.linalg.eigvals(Q) > 0), "Q is not positive definite"
+        assert np.all(np.linalg.eigvals(R) > 0), "R is not positive definite"
+        assert np.all(np.linalg.eigvals(P) > 0), "P is not positive definite"
 
         # Initialize variables
         self.Q = ca.MX(Q)
