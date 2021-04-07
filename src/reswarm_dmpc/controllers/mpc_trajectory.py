@@ -122,24 +122,15 @@ class TMPC(object):
 
             # Input constraints
             if uub is not None:
-                self.con_ineq.append(u_t)
-                self.con_ineq_ub.append(uub)
-                self.con_ineq_lb.append(np.full((self.Nu,), -ca.inf))
+                self.set_upper_bound_constraint(u_t, uub)
             if ulb is not None:
                 self.set_lower_bound_constraint(u_t, ulb)
-                self.con_ineq.append(u_t)
-                self.con_ineq_ub.append(np.full((self.Nu,), ca.inf))
-                self.con_ineq_lb.append(ulb)
 
             # State constraints
             if xub is not None:
-                self.con_ineq.append(x_t)
-                self.con_ineq_ub.append(xub)
-                self.con_ineq_lb.append(np.full((self.Nx,), -ca.inf))
+                self.set_upper_bound_constraint(x_t, xub)
             if xlb is not None:
-                self.con_ineq.append(x_t)
-                self.con_ineq_ub.append(np.full((self.Nx,), ca.inf))
-                self.con_ineq_lb.append(xlb)
+                self.set_lower_bound_constraint(x_t, xlb)
 
             # Objective Function / Cost Function
             obj += self.running_cost(x_t, x_r, self.Q, u_t, self.R)
@@ -150,9 +141,10 @@ class TMPC(object):
 
         # Terminal contraint
         if terminal_constraint is not None:
-            self.con_ineq.append(opt_var['x', self.Nt] - x_ref[self.Nt*13:])
-            self.con_ineq_lb.append(np.full((self.Nx,), -terminal_constraint))
-            self.con_ineq_ub.append(np.full((self.Nx,), terminal_constraint))
+            self.set_lower_bound_constraint(opt_var['x', self.Nt] - x_ref[self.Nt*13:],
+                                            np.full((self.Nx,), -terminal_constraint))
+            self.set_upper_bound_constraint(opt_var['x', self.Nt] - x_ref[self.Nt*13:],
+                                            np.full((self.Nx,), terminal_constraint))
 
         # Equality constraints bounds are 0 (they are equality constraints),
         # -> Refer to CasADi documentation
@@ -195,10 +187,22 @@ class TMPC(object):
         :param value: lower bound value
         :type value: np.ndarray
         """
-
         self.con_ineq.append(var)
         self.con_ineq_ub.append(np.full((var.shape[0],), ca.inf))
         self.con_ineq_lb.append(value)
+
+    def set_upper_bound_constraint(self, var, value):
+        """
+        Set a upper bound constraint for the variable var.
+
+        :param var: variable to upper bound
+        :type var: ca.MX, ca.DM
+        :param value: upper bound value
+        :type value: np.ndarray
+        """
+        self.con_ineq.append(var)
+        self.con_ineq_lb.append(np.full((var.shape[0],), -ca.inf))
+        self.con_ineq_ub.append(value)
 
     def set_options_dicts(self):
         """
