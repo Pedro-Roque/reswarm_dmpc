@@ -7,7 +7,7 @@ from reswarm_dmpc.controllers.mpc import MPC
 from reswarm_dmpc.simulation import EmbeddedSimEnvironment
 
 # Instantiante Model
-abee = Astrobee(h=0.1)
+abee = Astrobee(h=0.1, iface='casadi')
 
 # Instantiate controller
 Q = np.diag([10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100])

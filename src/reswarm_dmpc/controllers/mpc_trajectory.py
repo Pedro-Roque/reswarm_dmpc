@@ -21,7 +21,7 @@ from reswarm_dmpc.util import *
 class TMPC(object):
 
     def __init__(self, model, dynamics,
-                 Q, P, R, horizon=10,
+                 Q, P, R, solver_type='sqpmethod', horizon=10,
                  ulb=None, uub=None, xlb=None, xub=None,
                  terminal_constraint=None):
         """
@@ -50,14 +50,19 @@ class TMPC(object):
         :param terminal_constraint: terminal constraint set, defaults to None
         :type terminal_constraint: np.array, optional
         """
-
+        self.solve_time = 0.0
         build_solver_time = -time.time()
+        self.solver_type = solver_type
         self.dt = model.dt
         self.Nx = model.n
         self.Nu = model.m
         self.model = model
         self.Nt = int(horizon / self.dt)
         self.dynamics = dynamics
+
+        # Initialize barrier variables
+        self.set_zcbf = True
+        self.use_cont_time_guarantee = False
 
         # Initialize variables
         self.Q = ca.MX(Q)
@@ -160,9 +165,16 @@ class TMPC(object):
         self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
         self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
-        self.solver = ca.nlpsol('mpc_solver', 'ipopt', nlp,
-                                self.sol_options_ipopt)
 
+        # Instantiate solver
+        if self.solver_type == "sqpmethod":
+            self.solver = ca.nlpsol('mpc_solver', 'sqpmethod', nlp,
+                                    self.sol_options_sqp)
+        elif self.solver_type == "ipopt":
+            self.solver = ca.nlpsol('mpc_solver', 'ipopt', nlp,
+                                    self.sol_options_ipopt)
+        else:
+            raise ValueError("Wrong solver selected.")
         build_solver_time += time.time()
         print('\n________________________________________')
         print('# Receding horizon length: %d ' % self.Nt)
@@ -178,21 +190,48 @@ class TMPC(object):
         Helper function to set the dictionaries for solver and function options
         """
 
+        self.set_jit = False
         # Functions options
         self.fun_options = {
-            "jit": False,
-            "jit_options": {"flags": ["-O2"]}
+            "jit": self.set_jit,
+            "jit_options": {'compiler': 'ccache gcc',
+                            'flags': ["-O2", "-pipe"]},
+            'compiler': 'shell',
+            'jit_temp_suffix': False
         }
 
         # Options for NLP Solvers
+        # -> SQP Method
+        qp_opts = {
+            'max_iter': 10,
+            'error_on_fail': False,
+            'print_header': False,
+            'print_iter': False
+        }
+        self.sol_options_sqp = {
+            'max_iter': 3,
+            'qpsol': 'qrqp',
+            "jit": self.set_jit,
+            "jit_options": {'compiler': 'ccache gcc',
+                            'flags': ["-O2", "-pipe"]},
+            'compiler': 'shell',
+            'convexify_margin': 1e-5,
+            'jit_temp_suffix': False,
+            'print_header': False,
+            'print_time': False,
+            'print_iteration': False,
+            'qpsol_options': qp_opts
+        }
+
+        # Options for IPOPT Solver
         # -> IPOPT
         self.sol_options_ipopt = {
-            'ipopt.max_iter': 20,
-            'ipopt.max_resto_iter': 30,
+            # 'ipopt.max_iter': 1000,  # 20
+            # 'ipopt.max_resto_iter': 500,  # 30
             'ipopt.print_level': 0,
-            'ipopt.mu_init': 0.01,
-            'ipopt.tol': 1e-4,
-            'ipopt.warm_start_init_point': 'yes',
+            # 'ipopt.mu_init': 0.01,
+            # 'ipopt.tol': 1e-4,
+            # 'ipopt.warm_start_init_point': 'yes',
             'ipopt.warm_start_bound_push': 1e-4,
             'ipopt.warm_start_bound_frac': 1e-4,
             'ipopt.warm_start_slack_bound_frac': 1e-4,
@@ -201,23 +240,8 @@ class TMPC(object):
             'print_time': False,
             'verbose': False,
             'expand': True,
-            "jit": False,
+            "jit": self.set_jit,
             "jit_options": {"flags": ["-O2"]}
-        }
-
-        # -> SCPGEN
-        qp_opts = {
-                    'printLevel': 'tabular',
-                    'CPUtime': 0.0001
-                  }
-        self.sol_options_scpgen = {
-            'qpsol': 'qpoases',
-            'codegen': True,
-            'print_header': False,
-            'print_time': False,
-            'print_in': False,
-            'print_out': False,
-            'qpsol_options': qp_opts
         }
 
         return True
@@ -328,9 +352,13 @@ class TMPC(object):
         solve_time = -time.time()
         sol = self.solver(**args)
         solve_time += time.time()
-        # status = self.solver.stats()['return_status'] # IPOPT
-        status = self.solver.stats()['success']  # SCPGEN
+        status = None
+        if self.solver_type == "ipopt":
+            status = self.solver.stats()['return_status']
+        elif self.solver_type == "sqpmethod":
+            status = self.solver.stats()['success']
         optvar = self.opt_var(sol['x'])
+        self.solve_time = solve_time
 
         print ('Solver status: ', status)
         print('MPC took %f seconds to solve.' % (solve_time))
@@ -350,14 +378,14 @@ class TMPC(object):
         :rtype: ca.DM
         """
         # Generate trajectory from t0 and x0
-        x_sp = self.model.get_trajectory(x0, t0, self.Nt+1)
-        ref = x_sp[:, 0]
-        x_sp = x_sp.reshape(self.Nx*(self.Nt+1), order='F')
+        x_sp_vec = self.model.get_trajectory(x0, t0, self.Nt+1)
+        ref = x_sp_vec[:, 0]
+        x_sp = x_sp_vec.reshape(self.Nx*(self.Nt+1), order='F')
         self.set_reference(x_sp)
 
-        _, u_pred = self.solve_mpc(x0)
+        x_pred, u_pred = self.solve_mpc(x0)
 
-        return u_pred[0], ref
+        return u_pred[0], ref, x_pred, x_sp_vec
 
     def set_reference(self, x_sp):
         """
@@ -367,3 +395,9 @@ class TMPC(object):
         :type x_sp: ca.DM
         """
         self.x_sp = x_sp
+
+    def get_last_solve_time(self):
+        """
+        Get time that took to solve the MPC problem.
+        """
+        return self.solve_time

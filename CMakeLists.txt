@@ -16,9 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 # TODO: Generate dynamic reconfigure parameters in the 'cfg' folder
 # generate_dynamic_reconfigure_options(
-#   cfg/GainsWnXi.cfg
-#   cfg/GainsPID.cfg
-#   cfg/VisualServoing.cfg
+#   cfg/weightGenerationExample.cfg
 # )
 
 catkin_package(
@@ -44,8 +42,7 @@ include_directories(
 link_directories(${NMPC_controller} ${acados_lib})
 
 # NMPC node
-
-add_definitions( "-fPIC -std=c99 " ) # -O3
+add_definitions( "-fPIC" ) # -O3
 add_library(casadi_lib 
             ${NMPC_controller}/astrobee_model/astrobee_expl_ode_fun.c 
             ${NMPC_controller}/astrobee_model/astrobee_expl_vde_forw.c
@@ -66,14 +63,5 @@ add_library(ocp_solver
             ${NMPC_controller}/acados_sim_solver_astrobee.c)
 target_link_libraries(ocp_solver ocp_cost casadi_lib -lacados)
 
-add_executable(unit_test_acados ${PROJECT_SOURCE_DIR}/nodes/unit_test_acados_compile.cpp)
-target_link_libraries(unit_test_acados ocp_cost ocp_solver casadi_lib -lhpipm -lacados)
-
-# target_link_libraries(acados_nmpc
-#   ${catkin_LIBRARIES}
-# 	${NMPC_controller}/libacados_ocp_solver_astrobee.so
-# 	${acados_lib}/libacados.so
-# 	${acados_lib}/libhpipm.so
-# 	${acados_lib}/libqpOASES_e.so
-# 	${acados_lib}/libblasfeo.so
-# )
+add_executable(run_acados_compiled ${PROJECT_SOURCE_DIR}/nodes/run_acados_compiled.cpp)
+target_link_libraries(run_acados_compiled ocp_cost ocp_solver casadi_lib -lhpipm -lacados)

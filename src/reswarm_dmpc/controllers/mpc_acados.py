@@ -114,6 +114,10 @@ class MPC(object):
         self.ocp.constraints.lbx = xlb
         self.ocp.constraints.ubx = xub
 
+        # self.ocp.model.con_h_expr = # CASADI EXPR
+        # self.ocp.constraints.lh = # Lower lower bound
+        # self.ocp.constraints.uh = # Upper lower bound
+
         self.ocp.constraints.x0 = np.zeros(self.Nx)
 
         # If terminal_constraint is present, define terminal set
@@ -130,6 +134,7 @@ class MPC(object):
         self.ocp.solver_options.hessian_approx = 'GAUSS_NEWTON'
         self.ocp.solver_options.integrator_type = 'ERK'
         self.ocp.solver_options.nlp_solver_type = 'SQP_RTI'  # SQP_RTI
+        self.ocp.solver_options.print_level = 5
 
         self.ocp.solver_options.qp_solver_cond_N = self.Nt
         self.ocp.dims.N = self.Nt

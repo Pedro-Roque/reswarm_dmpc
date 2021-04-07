@@ -43,7 +43,8 @@ RUN python3 -c "import casadi"
 
 # Update acados source code, already cloned when compiling swig
 WORKDIR /home/reswarm
-RUN git clone https://github.com/acados/acados.git -b master acados
+# RUN git clone https://github.com/acados/acados.git -b master acados
+RUN git clone https://github.com/FreyJo/acados.git -b dev acados
 RUN cd /home/reswarm/acados && git submodule update --recursive --init
 
 # Compile acados with Python interface
@@ -51,7 +52,7 @@ RUN cd /home/reswarm/acados && git submodule update --recursive --init
 RUN cd /home/reswarm/acados && \
     rm -rf build && mkdir build && \
     cd build && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DUNIT_TESTS=ON .. && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DUNIT_TESTS=ON -DACADOS_WITH_QPOASES=ON .. && \
     make install
 
 # Set environment variables for acados lib, note that user is root

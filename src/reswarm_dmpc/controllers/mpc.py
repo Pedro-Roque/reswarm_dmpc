@@ -22,7 +22,7 @@ class MPC(object):
     def __init__(self, model, dynamics,
                  Q, P, R, horizon=10,
                  ulb=None, uub=None, xlb=None, xub=None,
-                 terminal_constraint=None):
+                 terminal_constraint=None, print_status=False):
         """
         MPC Controller Class for setpoint stabilization
 
@@ -50,6 +50,7 @@ class MPC(object):
         :type terminal_constraint: np.array, optional
         """
 
+        self.print_status = print_status
         build_solver_time = -time.time()
         self.dt = model.dt
         self.Nx = model.n
@@ -64,7 +65,7 @@ class MPC(object):
 
         self.set_options_dicts()
         self.set_cost_functions()
-        self.test_cost_functions(Q, R, P)
+
         self.x_sp = None
 
         if xub is None:
@@ -173,7 +174,7 @@ class MPC(object):
         """
         Helper function to set the dictionaries for solver and function options
         """
-        self.set_jit = True
+        self.set_jit = False
         # Functions options
         self.fun_options = {
             "jit": self.set_jit,
@@ -334,8 +335,9 @@ class MPC(object):
         status = self.solver.stats()['success']  # SCPGEN
         optvar = self.opt_var(sol['x'])
 
-        print('\nSolver status: ', status)
-        print('MPC took %f seconds to solve.' % (self.solve_time))
+        if self.print_status is True:
+            print('\nSolver status: ', status)
+            print('MPC took %f seconds to solve.' % (self.solve_time))
         print('MPC cost: ', sol['f'])
 
         return optvar['x'], optvar['u']
