@@ -21,7 +21,7 @@ from reswarm_dmpc.util import *
 class TMPC(object):
 
     def __init__(self, model, dynamics,
-                 Q, P, R, solver_type='sqpmethod', horizon=10,
+                 Q, P, R, horizon, solver_type='sqpmethod',
                  ulb=None, uub=None, xlb=None, xub=None,
                  terminal_constraint=None):
         """
@@ -31,8 +31,8 @@ class TMPC(object):
         :type model: python class
         :param dynamics: system dynamics function
         :type dynamics: ca.Function
-        :param horizon: prediction horizon [s], defaults to 10
-        :type horizon: float, optional
+        :param horizon: prediction horizon [s]
+        :type horizon: float
         :param Q: state error weight matrix
         :type Q: np.diag
         :param P: terminal state weight matrix
@@ -60,9 +60,12 @@ class TMPC(object):
         self.Nt = int(horizon / self.dt)
         self.dynamics = dynamics
 
-        # Initialize barrier variables
-        self.set_zcbf = True
-        self.use_cont_time_guarantee = False
+        # Make sure that time horizon is postive and solver is valid
+        assert horizon > 0, \
+               "horizon has to be a positive float"
+        assert solver_type == "sqpmethod" or \
+               solver_type == "ipopt", \
+               "wrong solver_type. Choose 'sqpmethod' or 'ipopt' "
 
         # Initialize variables
         self.Q = ca.MX(Q)
