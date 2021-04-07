@@ -103,11 +103,11 @@ class TMPC(object):
 
         # Set initial values
         obj = ca.MX(0)
-        con_eq = []
-        con_ineq = []
-        con_ineq_lb = []
-        con_ineq_ub = []
-        con_eq.append(opt_var['x', 0] - x0)
+        self.con_eq = []
+        self.con_ineq = []
+        self.con_ineq_lb = []
+        self.con_ineq_ub = []
+        self.con_eq.append(opt_var['x', 0] - x0)
 
         # Generate MPC Problem
         for t in range(self.Nt):
@@ -118,27 +118,28 @@ class TMPC(object):
 
             # Dynamics constraint
             x_t_next = self.dynamics(x_t, u_t)
-            con_eq.append(x_t_next - opt_var['x', t+1])
+            self.con_eq.append(x_t_next - opt_var['x', t+1])
 
             # Input constraints
             if uub is not None:
-                con_ineq.append(u_t)
-                con_ineq_ub.append(uub)
-                con_ineq_lb.append(np.full((self.Nu,), -ca.inf))
+                self.con_ineq.append(u_t)
+                self.con_ineq_ub.append(uub)
+                self.con_ineq_lb.append(np.full((self.Nu,), -ca.inf))
             if ulb is not None:
-                con_ineq.append(u_t)
-                con_ineq_ub.append(np.full((self.Nu,), ca.inf))
-                con_ineq_lb.append(ulb)
+                self.set_lower_bound_constraint(u_t, ulb)
+                self.con_ineq.append(u_t)
+                self.con_ineq_ub.append(np.full((self.Nu,), ca.inf))
+                self.con_ineq_lb.append(ulb)
 
             # State constraints
             if xub is not None:
-                con_ineq.append(x_t)
-                con_ineq_ub.append(xub)
-                con_ineq_lb.append(np.full((self.Nx,), -ca.inf))
+                self.con_ineq.append(x_t)
+                self.con_ineq_ub.append(xub)
+                self.con_ineq_lb.append(np.full((self.Nx,), -ca.inf))
             if xlb is not None:
-                con_ineq.append(x_t)
-                con_ineq_ub.append(np.full((self.Nx,), ca.inf))
-                con_ineq_lb.append(xlb)
+                self.con_ineq.append(x_t)
+                self.con_ineq_ub.append(np.full((self.Nx,), ca.inf))
+                self.con_ineq_lb.append(xlb)
 
             # Objective Function / Cost Function
             obj += self.running_cost(x_t, x_r, self.Q, u_t, self.R)
@@ -149,21 +150,21 @@ class TMPC(object):
 
         # Terminal contraint
         if terminal_constraint is not None:
-            con_ineq.append(opt_var['x', self.Nt] - x_ref[self.Nt*13:])
-            con_ineq_lb.append(np.full((self.Nx,), -terminal_constraint))
-            con_ineq_ub.append(np.full((self.Nx,), terminal_constraint))
+            self.con_ineq.append(opt_var['x', self.Nt] - x_ref[self.Nt*13:])
+            self.con_ineq_lb.append(np.full((self.Nx,), -terminal_constraint))
+            self.con_ineq_ub.append(np.full((self.Nx,), terminal_constraint))
 
         # Equality constraints bounds are 0 (they are equality constraints),
         # -> Refer to CasADi documentation
-        num_eq_con = ca.vertcat(*con_eq).size1()
-        num_ineq_con = ca.vertcat(*con_ineq).size1()
+        num_eq_con = ca.vertcat(*self.con_eq).size1()
+        num_ineq_con = ca.vertcat(*self.con_ineq).size1()
         con_eq_lb = np.zeros((num_eq_con, 1))
         con_eq_ub = np.zeros((num_eq_con, 1))
 
         # Set constraints
-        con = ca.vertcat(*(con_eq+con_ineq))
-        self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
-        self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
+        con = ca.vertcat(*(self.con_eq+self.con_ineq))
+        self.con_lb = ca.vertcat(con_eq_lb, *self.con_ineq_lb)
+        self.con_ub = ca.vertcat(con_eq_ub, *self.con_ineq_ub)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
 
         # Instantiate solver
@@ -184,6 +185,20 @@ class TMPC(object):
         print('# Number of inequality constraints: %d' % num_ineq_con)
         print('----------------------------------------')
         pass
+
+    def set_lower_bound_constraint(self, var, value):
+        """
+        Set a lower bound constraint for the variable var.
+
+        :param var: variable to lower bound
+        :type var: ca.MX, ca.DM
+        :param value: lower bound value
+        :type value: np.ndarray
+        """
+
+        self.con_ineq.append(var)
+        self.con_ineq_ub.append(np.full((var.shape[0],), ca.inf))
+        self.con_ineq_lb.append(value)
 
     def set_options_dicts(self):
         """
