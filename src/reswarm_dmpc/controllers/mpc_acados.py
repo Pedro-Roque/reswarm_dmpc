@@ -74,7 +74,6 @@ class MPC(object):
         self.ocp.model.disc_dyn_expr = model.disc_dyn_expr
         self.ocp.model.x = model.x
         self.ocp.model.u = model.u
-        # self.ocp.model.xdot = model.xdot
         self.ocp.model.name = model.name
 
         # Set cost function
