@@ -8,38 +8,23 @@ from reswarm_dmpc.simulation_trajectory import EmbeddedSimEnvironment
 
 """
 Test node to control 3 agents in a distributed formation. The geometry
-is, at first, a line formation ( f2<-f1<-l ), followed by a start
+is, at first, a line formation ( f2<-f1<-l ), followed by a star
 formation ( f1<-l->f2 ).
 """
 
-# Instantiante Model
-abee = Astrobee(h=0.2, iface='casadi')
+# Line formation
+#
+# Instantiate Models
+f_geom = np.array([[-1, 0, 0]]).T
+leader = Astrobee(h=0.2, iface='casadi', role='leader',
+                  vmax=0.2, num_neighbours=1, fg=f_geom)
 
-# Instantiate controller (to track a velocity)
-Q = np.diag([10, 10, 10, 100, 100, 100, 100, 100, 100, 10, 10, 10])
-R = np.diag([0.1, 0.1, 0.1, 0.5, 0.5, 0.5])
-P = Q*100
+f_geom = np.array([[1, 0, 0], [-1, 0, 0]]).T
+sub_leader = Astrobee(h=0.2, iface='casadi', role='local_leader',
+                      vmax=0.2, num_neighbours=2, fg=f_geom)
 
-ctl = TMPC(model=abee,
-           dynamics=abee.model,
-           horizon=2,
-           solver_type='ipopt',
-           Q=Q, R=R, P=P,
-           ulb=[-0.6, -0.3, -0.3, -0.06, -0.03, -0.03],
-           uub=[0.6, 0.3, 0.3, 0.06, 0.03, 0.03],
-           xlb=[-10, -10, -10, -1, -1, -1,
-                -1, -1, -1, -1, -0.1, -0.1, -0.1],
-           xub=[10, 10, 10, 1, 1, 1,
-                1, 1, 1, 1, 0.1, 0.1, 0.1])
+f_geom = np.array([[1, 0, 0]]).T
+follower = Astrobee(h=0.2, iface='casadi', role='follower',
+                    vmax=0.2, num_neighbours=1, fg=f_geom)
 
-# Sinusoidal Trajectory
-abee.set_trajectory_type("SinusoidalOffset")
-sim_env_full = EmbeddedSimEnvironment(model=abee,
-                                      dynamics=abee.model,
-                                      ctl_class=ctl,
-                                      controller=ctl.mpc_controller,
-                                      noise={"pos": 0.001, "vel": 0.002,
-                                             "att": 0.001, "ang": 0.005},
-                                      time=20, plot=True)
-sim_env_full.use_trajectory_control(True)
-sim_env_full.run([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])
+# Create controllers for each agent

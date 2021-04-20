@@ -38,6 +38,10 @@ class Astrobee(object):
         self.mass = mass
         self.inertia = inertia
 
+        # Set single agent properties
+        self.set_casadi_options()
+        self.set_dynamics()
+
         # Check additional role parameters:
         if 'role' in kwargs:
             # Check role validity
@@ -92,9 +96,6 @@ class Astrobee(object):
                    "Wrong formation geometry shape. Should be 3 x #neighbours"
             self.fg = kwargs['fg']
 
-        self.set_casadi_options()
-        self.set_dynamics()
-
     def set_casadi_options(self):
         """
         Helper function to set casadi options.
@@ -138,7 +139,7 @@ class Astrobee(object):
                                               [next_follower_rpos],
                                               self.fun_options)
 
-    def set_leader_dynamics(self):
+    def set_local_leader_dynamics(self):
         """
         Helper function to set local leader dynamics in the formation.
         Applies the prediction model in  @TODO(Pedro-Roque): ref to paper.
@@ -171,8 +172,8 @@ class Astrobee(object):
         eps = 0.0001  # Epsilon for zero singularity
 
         e_rpos = rposD - rpos
-        e_vf = vmax*(1.0 - ca.exp(-alpha*ca.norm(e_rpos)))
-        next_rpos = rpos + ((e_rpos)/(ca.norm(e_rpos)+eps))*(e_vf - ca.norm(v))
+        e_vf = vmax*(1.0 - ca.exp(-alpha*ca.norm_2(e_rpos)))
+        next_rpos = rpos + ((e_rpos)/(ca.norm_2(e_rpos)+eps))*(e_vf - ca.norm_2(v))
 
         return next_rpos
 
