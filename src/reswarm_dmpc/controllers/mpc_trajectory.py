@@ -21,9 +21,8 @@ from reswarm_dmpc.util import *
 class TMPC(object):
 
     def __init__(self, model, dynamics,
-                 Q, P, R, horizon, solver_type='sqpmethod',
-                 ulb=None, uub=None, xlb=None, xub=None,
-                 terminal_constraint=None):
+                 Q, P, R, solver_type='sqpmethod', horizon=10,
+                 **kwargs):
         """
         MPC Controller Class for setpoint stabilization
 
@@ -31,8 +30,8 @@ class TMPC(object):
         :type model: python class
         :param dynamics: system dynamics function
         :type dynamics: ca.Function
-        :param horizon: prediction horizon [s]
-        :type horizon: float
+        :param horizon: prediction horizon [s], defaults to 10
+        :type horizon: float, optional
         :param Q: state error weight matrix
         :type Q: np.diag
         :param P: terminal state weight matrix
@@ -50,8 +49,8 @@ class TMPC(object):
         :param terminal_constraint: terminal constraint set, defaults to None
         :type terminal_constraint: np.array, optional
         """
+
         self.solve_time = 0.0
-        build_solver_time = -time.time()
         self.solver_type = solver_type
         self.dt = model.dt
         self.Nx = model.n
@@ -60,36 +59,39 @@ class TMPC(object):
         self.Nt = int(horizon / self.dt)
         self.dynamics = dynamics
 
-        # Assertions for the MPC algorithm assumptions
-        # Make sure that time horizon is postive and solver is valid
-        assert horizon > 0, "horizon has to be a positive float"
-        assert solver_type == "sqpmethod" or \
-               solver_type == "ipopt", \
-               "wrong solver_type. Choose 'sqpmethod' or 'ipopt' "
-
-        # Make sure that weight matrices are positive definite
-        assert np.all(np.linalg.eigvals(Q) > 0), "Q is not positive definite"
-        assert np.all(np.linalg.eigvals(R) > 0), "R is not positive definite"
-        assert np.all(np.linalg.eigvals(P) > 0), "P is not positive definite"
-
         # Initialize variables
         self.Q = ca.MX(Q)
         self.P = ca.MX(P)
         self.R = ca.MX(R)
 
-        self.set_options_dicts()
-        self.set_cost_functions()
-        self.test_cost_functions(Q, R, P)
         self.x_sp = None
 
-        if xub is None:
-            xub = np.full((self.Nx), np.inf)
-        if xlb is None:
-            xlb = np.full((self.Nx), -np.inf)
-        if uub is None:
-            uub = np.full((self.Nu), np.inf)
-        if ulb is None:
-            ulb = np.full((self.Nu), -np.inf)
+        # Initialize barrier variables
+        if "xub" in kwargs:
+            self.xub = kwargs["xub"]
+        if "xlb" in kwargs:
+            self.xlb = kwargs["xlb"]
+        if "uub" in kwargs:
+            self.uub = kwargs["uub"]
+        if "ulb" in kwargs:
+            self.ulb = kwargs["ulb"]
+        if "terminal_constraint" in kwargs:
+            self.tc_ub = np.full((self.Nx,), kwargs["terminal_constraint"])
+            self.tc_lb = np.full((self.Nx,), -kwargs["terminal_constraint"])
+        if "set_zcbf" in kwargs:
+            self.use_zcbf = kwargs["set_zcbf"]
+        self.set_options_dicts()
+        if "use_jit" in kwargs:
+            self.set_jit()
+        self.set_cost_functions()
+        self.test_cost_functions(Q, R, P)
+
+    def create_solver(self):
+        """
+        Instantiate the solver object.
+        """
+
+        build_solver_time = -time.time()
 
         # Starting state parameters - add slack here
         x0 = ca.MX.sym('x0', self.Nx)
@@ -111,11 +113,11 @@ class TMPC(object):
 
         # Set initial values
         obj = ca.MX(0)
-        self.con_eq = []
-        self.con_ineq = []
-        self.con_ineq_lb = []
-        self.con_ineq_ub = []
-        self.con_eq.append(opt_var['x', 0] - x0)
+        con_eq = []
+        con_ineq = []
+        con_ineq_lb = []
+        con_ineq_ub = []
+        con_eq.append(opt_var['x', 0] - x0)
 
         # Generate MPC Problem
         for t in range(self.Nt):
@@ -126,19 +128,39 @@ class TMPC(object):
 
             # Dynamics constraint
             x_t_next = self.dynamics(x_t, u_t)
-            self.con_eq.append(x_t_next - opt_var['x', t+1])
+            con_eq.append(x_t_next - opt_var['x', t+1])
 
             # Input constraints
-            if uub is not None:
-                self.set_upper_bound_constraint(u_t, uub)
-            if ulb is not None:
-                self.set_lower_bound_constraint(u_t, ulb)
+            if hasattr(self, 'uub'):
+                con_ineq.append(u_t)
+                con_ineq_ub.append(self.uub)
+                con_ineq_lb.append(np.full((self.Nu,), -ca.inf))
+            if hasattr(self, 'ulb'):
+                con_ineq.append(u_t)
+                con_ineq_ub.append(np.full((self.Nu,), ca.inf))
+                con_ineq_lb.append(self.ulb)
 
             # State constraints
-            if xub is not None:
-                self.set_upper_bound_constraint(x_t, xub)
-            if xlb is not None:
-                self.set_lower_bound_constraint(x_t, xlb)
+            if hasattr(self, 'xub'):
+                con_ineq.append(x_t)
+                con_ineq_ub.append(self.xub)
+                con_ineq_lb.append(np.full((self.Nx,), -ca.inf))
+            if hasattr(self, 'xlb'):
+                con_ineq.append(x_t)
+                con_ineq_ub.append(np.full((self.Nx,), ca.inf))
+                con_ineq_lb.append(self.xlb)
+
+            # ZCBF constraints
+            if hasattr(self, "use_zcbf") and t == 0:
+                hp_ineq, hq_ineq = self.model.get_barrier_value(x_t, x_r, u_t)
+                con_ineq.append(hp_ineq)
+                con_ineq_lb.append(0)
+                con_ineq_ub.append(ca.inf)
+
+                con_ineq.append(hq_ineq)
+                con_ineq_lb.append(0)
+                con_ineq_ub.append(ca.inf)
+                pass
 
             # Objective Function / Cost Function
             obj += self.running_cost(x_t, x_r, self.Q, u_t, self.R)
@@ -148,34 +170,28 @@ class TMPC(object):
                                   x_ref[self.Nt*13:], self.P)
 
         # Terminal contraint
-        if terminal_constraint is not None:
-            self.set_lower_bound_constraint(opt_var['x', self.Nt] - x_ref[self.Nt*13:],
-                                            np.full((self.Nx,), -terminal_constraint))
-            self.set_upper_bound_constraint(opt_var['x', self.Nt] - x_ref[self.Nt*13:],
-                                            np.full((self.Nx,), terminal_constraint))
+        if hasattr(self, 'tc_lb') and hasattr(self, 'tc_ub'):
+            con_ineq.append(opt_var['x', self.Nt] - x_ref[self.Nt*13:])
+            con_ineq_lb.append(self.tc_lb)
+            con_ineq_ub.append(self.tc_ub)
 
         # Equality constraints bounds are 0 (they are equality constraints),
         # -> Refer to CasADi documentation
-        num_eq_con = ca.vertcat(*self.con_eq).size1()
-        num_ineq_con = ca.vertcat(*self.con_ineq).size1()
+        num_eq_con = ca.vertcat(*con_eq).size1()
+        num_ineq_con = ca.vertcat(*con_ineq).size1()
         con_eq_lb = np.zeros((num_eq_con, 1))
         con_eq_ub = np.zeros((num_eq_con, 1))
 
         # Set constraints
-        con = ca.vertcat(*(self.con_eq+self.con_ineq))
-        self.con_lb = ca.vertcat(con_eq_lb, *self.con_ineq_lb)
-        self.con_ub = ca.vertcat(con_eq_ub, *self.con_ineq_ub)
+        con = ca.vertcat(*(con_eq+con_ineq))
+        self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
+        self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
 
         # Instantiate solver
-        if self.solver_type == "sqpmethod":
-            self.solver = ca.nlpsol('mpc_solver', 'sqpmethod', nlp,
-                                    self.sol_options_sqp)
-        elif self.solver_type == "ipopt":
-            self.solver = ca.nlpsol('mpc_solver', 'ipopt', nlp,
-                                    self.sol_options_ipopt)
-        else:
-            raise ValueError("Wrong solver selected.")
+        self.set_dictionaries(nlp)
+        self.solver = self.solver_dict[self.solver_type]
+
         build_solver_time += time.time()
         print('\n________________________________________')
         print('# Receding horizon length: %d ' % self.Nt)
@@ -186,46 +202,13 @@ class TMPC(object):
         print('----------------------------------------')
         pass
 
-    def set_lower_bound_constraint(self, var, value):
-        """
-        Set a lower bound constraint for the variable var.
-
-        :param var: variable to lower bound
-        :type var: ca.MX, ca.DM
-        :param value: lower bound value
-        :type value: np.ndarray
-        """
-        self.con_ineq.append(var)
-        self.con_ineq_ub.append(np.full((var.shape[0],), ca.inf))
-        self.con_ineq_lb.append(value)
-
-    def set_upper_bound_constraint(self, var, value):
-        """
-        Set a upper bound constraint for the variable var.
-
-        :param var: variable to upper bound
-        :type var: ca.MX, ca.DM
-        :param value: upper bound value
-        :type value: np.ndarray
-        """
-        self.con_ineq.append(var)
-        self.con_ineq_lb.append(np.full((var.shape[0],), -ca.inf))
-        self.con_ineq_ub.append(value)
-
     def set_options_dicts(self):
         """
         Helper function to set the dictionaries for solver and function options
         """
 
-        self.set_jit = False
         # Functions options
-        self.fun_options = {
-            "jit": self.set_jit,
-            "jit_options": {'compiler': 'ccache gcc',
-                            'flags': ["-O2", "-pipe"]},
-            'compiler': 'shell',
-            'jit_temp_suffix': False
-        }
+        self.fun_options = None
 
         # Options for NLP Solvers
         # -> SQP Method
@@ -238,12 +221,7 @@ class TMPC(object):
         self.sol_options_sqp = {
             'max_iter': 3,
             'qpsol': 'qrqp',
-            "jit": self.set_jit,
-            "jit_options": {'compiler': 'ccache gcc',
-                            'flags': ["-O2", "-pipe"]},
-            'compiler': 'shell',
             'convexify_margin': 1e-5,
-            'jit_temp_suffix': False,
             'print_header': False,
             'print_time': False,
             'print_iteration': False,
@@ -261,12 +239,40 @@ class TMPC(object):
             'ipopt.warm_start_mult_bound_push': 1e-4,
             'print_time': False,
             'verbose': False,
-            'expand': True,
-            "jit": self.set_jit,
-            "jit_options": {"flags": ["-O2"]}
+            'expand': True
         }
 
         return True
+
+    def set_jit(self):
+
+        self.fun_options = {
+            "jit": True,
+            "jit_options": {'compiler': 'ccache gcc',
+                            'flags': ["-O2", "-pipe"]},
+            'compiler': 'shell',
+            'jit_temp_suffix': True
+        }
+
+        self.sol_options_sqp.update({
+            "jit": True,
+            "jit_options": {'compiler': 'ccache gcc',
+                            'flags': ["-O2", "-pipe"]},
+            'compiler': 'shell',
+            'jit_temp_suffix': False})
+
+        self.sol_options_ipopt.update({
+            "jit": True,
+            "jit_options": {"flags": ["-O2"]}})
+
+    def set_solver_dictionaries(self, nlp):
+
+        self.solver_dict = {
+            'sqpmethod': ca.nlpsol('mpc_solver', 'sqpmethod', nlp,
+                                   self.sol_options_sqp),
+            'ipopt': ca.nlpsol('mpc_solver', 'ipopt', nlp,
+                               self.sol_options_ipopt)
+        }
 
     def set_cost_functions(self):
         """
@@ -383,7 +389,7 @@ class TMPC(object):
         self.solve_time = solve_time
 
         print ('Solver status: ', status)
-        print('MPC took %f seconds to solve.' % (solve_time))
+        # print('MPC took %f seconds to solve.' % (solve_time))
         print('MPC cost: ', sol['f'])
 
         return optvar['x'], optvar['u']
