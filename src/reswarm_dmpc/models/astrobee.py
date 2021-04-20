@@ -10,10 +10,11 @@ from reswarm_dmpc.util import *
 
 class Astrobee(object):
     def __init__(self,
-                 iface='acados',
+                 iface='casadi',
                  mass=7,
                  inertia=np.diag([0.1083, 0.1083, 0.1083]),
-                 h=0.01):
+                 h=0.01,
+                 **kwargs):
         """
         Astrobee Robot, NMPC tester class.
 
@@ -33,27 +34,66 @@ class Astrobee(object):
         self.m = 6
         self.dt = h
 
-        # Tracking
-        self.trajectory_type = "Sinusoidal"
-
         # Model prperties
         self.mass = mass
         self.inertia = inertia
 
-        # Barrier properties
-        self.eps_p = 0.2
-        self.eps_v = 0.1
-        self.hp_m = 1.0
-        self.hp_exp = 1.0
+        # Check additional role parameters:
+        if 'role' in kwargs:
+            # Check role validity
+            assert kwargs['role'] in ['leader', 'follower', 'local_leader'],\
+                   "Wrong role. Can be 'leader', 'follower' or 'local_leader'."
+            self.role = kwargs['role']
 
-        self.eps_q = 0.5
-        self.eps_w = 0.1
-        self.hq_m = 1.0
-        self.hq_exp = 1.0
+            # Check existence of vmax parameter
+            assert 'vmax' in kwargs, "Missing 'vmax' for agent role"
+            assert type(kwargs['vmax']) is float, "Wrong data-type for 'vmax'.\
+                                                   Should be float."
+            self.neighbours_vmax = kwargs['vmax']
+
+            # Check existence of number of neighbours paramter
+            assert 'num_neighbours' in kwargs, "Missing number of neighbors"
+            assert type(kwargs['num_neighbours']) is int, "Wrong data type for\
+                   'num_neighbors'. Should be int."
+            assert kwargs['num_neighbours'] > 0, "Invalid number of numbers.\
+                   Should be bigger than 0."
+            self.num_neighbors = kwargs['num_neighbours']
+
+            # Define neighbors dynamics depending on the role
+            if kwargs['role'] == 'leader':
+                # prepare leader dynamics
+                self.set_follower_dynamics()
+            elif kwargs['role'] == 'follower':
+                # prepare follower dynamics
+                self.set_local_leader_dynamics()
+            elif kwargs['role'] == 'local_leader':
+                # prepare dynamics for leader and follower
+                self.set_local_leader_dynamics()
+                self.set_follower_dynamics()
+
+            # Get formation geometry. Formation geometry is defined as the
+            # relative position of all the neighbors in the local frame of
+            # the Astrobee. The geometry is passed as a np.ndarray with
+            # shape (3,n), with 'n' being the number neighbours, starting
+            # on the local leader (if it exists) and finishing on the bottom
+            # right agent. The formation is assumed to be a binary tree-shape.
+            # Leader is always the first agent (1).
+            # Ex:         Star-shape
+            #
+            #                 (1)              Line-Shape
+            #                  |
+            #                  O               (1)--O--(2)
+            #                 / \
+            #               (2) (3)
+            #
+            assert 'fg' in kwargs, "Missing formation geometry param 'fg'."
+            assert np.shape(kwargs['fg'])[0] == 3 and \
+                   np.shape(kwargs['fg'])[1] == self.num_neighbors, \
+                   "Wrong formation geometry shape. Should be 3 x #neighbours"
+            self.fg = kwargs['fg']
 
         self.set_casadi_options()
         self.set_dynamics()
-        self.set_barrier_functions()
 
     def set_casadi_options(self):
         """
@@ -83,14 +123,75 @@ class Astrobee(object):
 
         return
 
-    def test_dynamics(self, state, input):
+    def set_follower_dynamics(self):
         """
-        Helper function for a simple dynamics test.
+        Helper function to set local follower dynamics in the formation.
+        Applies the prediction model in  @TODO(Pedro-Roque): ref to paper.
         """
-        if self.solver != 'acados':
-            next_state = self.model(state, input)  # state after self.dt
-            next_state[6:10] = next_state[6:10]/ca.norm_2(next_state[6:10])
-            return np.asarray(next_state)
+
+        v = ca.MX.sym('v', 3, 1)
+        rpos0 = ca.MX.sym('rpos', 3, 1)
+        rposD = ca.MX.sym('rposD', 3, 1)
+        next_follower_rpos = self.follower_dynamics(v, rpos0, rpos0)
+        self.next_follower_rpos = ca.Function('FollowerRPos',
+                                              [v, rpos0, rposD],
+                                              [next_follower_rpos],
+                                              self.fun_options)
+
+    def set_leader_dynamics(self):
+        """
+        Helper function to set local leader dynamics in the formation.
+        Applies the prediction model in  @TODO(Pedro-Roque): ref to paper.
+        """
+
+        v = ca.MX.sym('v', 3, 1)
+        q = ca.MX.sym('q', 4, 1)
+        rpos0 = ca.MX.sym('rpos', 3, 1)
+        vL = ca.MX.sym('vL', 3, 1)
+        next_leader_rpos = self.local_leader_dynamics(q, v, rpos0, vL)
+        self.next_local_leader_rpos = ca.Function('LeaderRPos',
+                                                  [v, q, rpos0, vL],
+                                                  [next_leader_rpos],
+                                                  self.fun_options)
+
+    def follower_dynamics(self, v, rpos, rposD):
+        """
+        Predict follower position based on a relative position 'rpos'
+        measurement and desired relative position.
+
+        :param v: agent velocity
+        :type v: ca.MX, np.ndarray
+        :param rpos: relative position vector, 3x1
+        :type rpos: ca.MX , np.ndarray
+        :param rposD: desired relative position of follower
+        :type rposD: ca.MX , np.ndarray
+        """
+        vmax = self.neighbours_vmax
+        alpha = 1  # Exponential decay
+        eps = 0.0001  # Epsilon for zero singularity
+
+        e_rpos = rposD - rpos
+        e_vf = vmax*(1.0 - ca.exp(-alpha*ca.norm(e_rpos)))
+        next_rpos = rpos + ((e_rpos)/(ca.norm(e_rpos)+eps))*(e_vf - ca.norm(v))
+
+        return next_rpos
+
+    def local_leader_dynamics(self, q, v, rpos, vL):
+        """
+        Predict local leader position based on a relative position 'rpos'
+        measurement and the local leader velocity 'vL'.
+
+        :param v: agent velocity
+        :type v: ca.MX, np.ndarray
+        :param rpos: relative position vector, 3x1
+        :type rpos: ca.MX , np.ndarray
+        :param vL: local leader velocity
+        :type vL: ca.MX , np.ndarray
+        """
+        v_err = vL - v
+        next_rpos = rpos + ca.mtimes(r_mat(q).T, v_err)
+
+        return next_rpos
 
     def astrobee_dynamics(self, x, u):
         """
@@ -126,6 +227,15 @@ class Astrobee(object):
         dxdt = [pdot, vdot, qdot, wdot]
 
         return ca.vertcat(*dxdt)
+
+    def test_dynamics(self, state, input):
+        """
+        Helper function for a simple dynamics test.
+        """
+        if self.solver != 'acados':
+            next_state = self.model(state, input)  # state after self.dt
+            next_state[6:10] = next_state[6:10]/ca.norm_2(next_state[6:10])
+            return np.asarray(next_state)
 
     def rk4_integrator(self, dynamics):
         """
@@ -225,242 +335,3 @@ class Astrobee(object):
         omega[2, 2] = -w_z
 
         return omega
-
-    def get_trajectory(self, x0, t0, npoints):
-        """
-        Generate trajectory to be followed.
-
-        :param x0: starting position
-        :type x0: ca.DM
-        :param t0: starting time
-        :type t0: float
-        :param npoints: number of trajectory points
-        :type npoints: int
-        :return: trajectory with shape (Nx, npoints)
-        :rtype: np.array
-        """
-
-        if self.trajectory_type == "Sinusoidal":
-            # Trajectory params
-            f = 0.1
-            A = 0.1
-
-            # Trajectory reference
-            t = np.linspace(t0, t0+(npoints-1)*self.dt, npoints)
-            vx = A*np.cos(2*np.pi*f*t)
-            vy = A*np.sin(2*np.pi*f*t)
-            vz = 0.05*np.ones(npoints)
-
-            # Once we have a velocity profile, we can create the
-            # position references
-            x = np.array([x0[0]])
-            y = np.array([x0[1]])
-            z = np.array([x0[2]])
-
-            for i in range(npoints-1):
-                x = np.append(x, x[-1]+vx[i]*self.dt)
-                y = np.append(y, y[-1]+vy[i]*self.dt)
-                z = np.append(z, z[-1]+vz[i]*self.dt)
-            # Create trajectory matrix
-            x_sp = np.array([x])
-            x_sp = np.append(x_sp, [y], axis=0)
-            x_sp = np.append(x_sp, [z], axis=0)
-            x_sp = np.append(x_sp, [vx], axis=0)
-            x_sp = np.append(x_sp, [vy], axis=0)
-            x_sp = np.append(x_sp, [vz], axis=0)
-            x_sp = np.append(x_sp, np.zeros((3, npoints)), axis=0)
-            x_sp = np.append(x_sp, np.ones((1, npoints)), axis=0)
-            x_sp = np.append(x_sp, np.zeros((3, npoints)), axis=0)
-
-        if self.trajectory_type == "SinusoidalOffset":
-            if t0 == 0.0:
-                # Generate whole trajectory for 20 seconds
-                # Trajectory params
-                f = 0.01
-                A = 0.01
-
-                # Trajectory reference
-                # Get npoints
-                total_trajectory_time = 25  # [s]
-                gen_points = int(total_trajectory_time/self.dt)
-                t = np.linspace(t0, t0+(gen_points-1)*self.dt, gen_points)
-                vx = A*np.cos(2*np.pi*f*t)
-                vy = A*np.sin(2*np.pi*f*t)
-                vz = 0.005*np.ones(gen_points)
-
-                # Once we have a velocity profile, we can create the
-                # position references
-                x = np.array([-0.1])
-                y = np.array([0.1])
-                z = np.array([0])
-
-                for i in range(gen_points-1):
-                    x = np.append(x, x[-1]+vx[i]*self.dt)
-                    y = np.append(y, y[-1]+vy[i]*self.dt)
-                    z = np.append(z, z[-1]+vz[i]*self.dt)
-                # Create trajectory matrix
-                x_sp = np.array([x])
-                x_sp = np.append(x_sp, [y], axis=0)
-                x_sp = np.append(x_sp, [z], axis=0)
-                x_sp = np.append(x_sp, [vx], axis=0)
-                x_sp = np.append(x_sp, [vy], axis=0)
-                x_sp = np.append(x_sp, [vz], axis=0)
-                x_sp = np.append(x_sp, np.zeros((3, gen_points)), axis=0)
-                x_sp = np.append(x_sp, np.ones((1, gen_points)), axis=0)
-                x_sp = np.append(x_sp, np.zeros((3, gen_points)), axis=0)
-                self.full_trajectory = np.array(x_sp)
-
-                x_sp = x_sp[:, 0:npoints]
-            else:
-                x_sp = self.full_trajectory[:, int(t0/self.dt):(int(t0/self.dt) + npoints)]
-
-        return x_sp
-
-    def set_trajectory_type(self, trj_type):
-        """
-        Set trajectory type to be followed
-
-        :param trj_type: trajectory format
-        :type trj_type: string
-        """
-
-        self.trajectory_type = trj_type
-
-    def set_barrier_functions(self, hp=None, hpdt=None,
-                              hq=None, hqdt=None):
-        """
-        Helper method to set the desired barrier functions.
-
-        :param hp: position barrier, defaults to None
-        :type hp: ca.MX, optional
-        :param hpdt: time-derivative of hp, defaults to None
-        :type hpdt: ca.MX, optional
-        :param hq: attitude barrier, defaults to None
-        :type hq: ca.MX, optional
-        :param hqdt: time-derivative of hq, defaults to None
-        :type hqdt: ca.MX, optional
-        """
-
-        if hp is not None and hpdt is not None:
-            self.hp = hp
-            self.hpdt = hpdt
-        else:
-            # Paper Translation barrier
-            u = ca.MX.sym("u", 6, 1)
-
-            p = ca.MX.sym("p", 3, 1)
-            pr = ca.MX.sym("pr", 3, 1)
-
-            v = ca.MX.sym("v", 3, 1)
-            vr = ca.MX.sym("vr", 3, 1)
-
-            dot_vr = ca.MX.sym("dotvr", 3, 1)
-
-            hp = self.eps_p - ca.norm_2(p-pr)**2 \
-                + self.eps_v - ca.norm_2(v-vr)**2
-
-            hpdt = -2*ca.mtimes((p-pr).T, v) + 2*ca.mtimes((p-pr).T, vr) \
-                - 2*ca.mtimes((v-vr).T, u[0:3]/self.mass) \
-                + 2*ca.mtimes((v-vr).T, dot_vr)
-
-            self.hp = ca.Function('hp', [p, pr, v, vr],
-                                        [self.hp_m*hp**self.hp_exp],
-                                  self.fun_options)
-            self.hpdt = ca.Function('hpdt', [p, pr, u, v, vr, dot_vr], [hpdt],
-                                    self.fun_options)
-
-        if hq is not None and hqdt is not None:
-            self.hq = hq
-            self.hqdt = hqdt
-        else:
-            # Paper Attitude Barrier
-            q = ca.MX.sym("q", 4, 1)
-            qr = ca.MX.sym("qr", 4, 1)
-
-            w = ca.MX.sym("w", 3, 1)
-            wr = ca.MX.sym("wr", 3, 1)
-
-            dot_wr = ca.MX.sym("dotwr", 3, 1)
-
-            hq = self.eps_q - (1 - ca.mtimes(q.T, qr)**2) \
-                + self.eps_w - ca.norm_2(w-wr)**2
-
-            hqdt = ca.mtimes(ca.mtimes(qr.T, self.xi_mat(q)), w) \
-                + ca.mtimes(ca.mtimes(q.T, self.xi_mat(qr)), wr) \
-                - 2*ca.mtimes((w - wr).T,
-                              ca.mtimes(ca.inv(self.inertia), u[3:])) \
-                + 2*ca.mtimes((w-wr).T, dot_wr)
-
-            self.hq = ca.Function('hp', [q, qr, w, wr], [self.hq_m*hq**self.hq_exp],
-                                      self.fun_options)
-            self.hqdt = ca.Function('hpdt', [q, qr, u, w, wr, dot_wr], [hqdt],
-                                    self.fun_options)
-
-        vT = 0.0  # TODO(Pedro-Roque): set v(T) alpha function
-        self.vT = 0.0
-
-    def get_barrier_value(self, x_t, x_r, u_t):
-
-        p = x_t[0:3]
-        v = x_t[3:6]
-        q = x_t[6:10]
-        w = x_t[10:]
-
-        pr = x_r[0:3]
-        vr = x_r[3:6]
-        # dot_vr = ca.MX.zeros(3, 1)
-        dot_vr = np.zeros((3, 1))
-        qr = x_r[6:10]
-        wr = x_r[10:]
-        # dot_wr = ca.MX.zeros(3, 1)
-        dot_wr = np.zeros((3, 1))
-
-        u = u_t
-
-        # hp_ineq >= 0
-        hp_ineq = self.hpdt(p, pr, u, v, vr, dot_vr) \
-            + self.hp(p, pr, v, vr)
-
-        # hq_ineq >= 0
-        hq_ineq = self.hqdt(q, qr, u, w, wr, dot_wr) \
-            + self.hq(q, qr, w, wr)
-
-        return hp_ineq, hq_ineq
-
-    def test_barrier_functions(self):
-        """
-        Unit test for barrier certificates.
-        """
-
-        # Set variables:
-        p = np.zeros((3, 1))
-        pr = np.zeros((3, 1))
-        v = np.zeros((3, 1))
-        vr = np.zeros((3, 1))
-        dot_vr = np.zeros((3, 1))
-
-        q = np.array([[0, 0, 0, 1]]).reshape(4, 1)
-        qr = np.array([[0, 0, 0, 1]]).reshape(4, 1)
-        w = np.zeros((3, 1))
-        wr = np.zeros((3, 1))
-        dot_wr = np.zeros((3, 1))
-
-        u = np.zeros((6, 1))
-
-        # Position barrier:
-        hp_output = self.hpdt(p, pr, u, v, vr, dot_vr) + self.hp(p, pr, v, vr)
-        hq_output = self.hqdt(q, qr, u, w, wr, dot_wr) + self.hq(q, qr, w, wr)
-        print("# --- Zeroing Control Barrier Functions Test --- #")
-        print("Test at desired reference:")
-        print("Pos Barrier: ", hp_output, "\nAtt Barrier: ", hq_output)
-        p = np.ones((3, 1))*2
-        hp_output = self.hpdt(p, pr, u, v, vr, dot_vr) + self.hp(p, pr, v, vr)
-        hq_output = self.hqdt(q, qr, u, w, wr, dot_wr) + self.hq(q, qr, w, wr)
-        print("Test position far from desired reference:")
-        print("Pos Barrier: ", hp_output, "\nAtt Barrier: ", hq_output)
-        p = np.zeros((3, 1))
-        q = np.array([[0, 1, 0, 0]]).reshape(4, 1)
-        hp_output = self.hpdt(p, pr, u, v, vr, dot_vr) + self.hp(p, pr, v, vr)
-        hq_output = self.hqdt(q, qr, u, w, wr, dot_wr) + self.hq(q, qr, w, wr)
-        print("Test attitude far from desired reference:")
-        print("Pos Barrier: ", hp_output, "\nAtt Barrier: ", hq_output)
