@@ -66,7 +66,7 @@ class TMPC(object):
 
         self.x_sp = None
 
-        # Initialize barrier variables
+        # Initialize bound variables
         if "xub" in kwargs:
             self.xub = kwargs["xub"]
         if "xlb" in kwargs:
@@ -78,13 +78,27 @@ class TMPC(object):
         if "terminal_constraint" in kwargs:
             self.tc_ub = np.full((self.Nx,), kwargs["terminal_constraint"])
             self.tc_lb = np.full((self.Nx,), -kwargs["terminal_constraint"])
-        if "set_zcbf" in kwargs:
-            self.use_zcbf = kwargs["set_zcbf"]
+
+        # Check if we are in formation context
+        self.formation = False
+        if hasattr(self.model, 'role'):
+            self.formation = True
+            self.role = self.model.role
+            self.num_neighbours = self.model.num_neighbours
+            self.fg = self.model.fg
+
+            # Dynamics
+            self.follower_dynamics = self.model.next_follower_rpos
+            self.leader_dynamics = self.model.next_local_leader_rpos
+
+        # Set internal solver properties
         self.set_options_dicts()
         if "use_jit" in kwargs:
             self.set_jit()
+
         self.set_cost_functions()
         self.test_cost_functions(Q, R, P)
+        self.create_solver()
 
     def create_solver(self):
         """
@@ -98,12 +112,24 @@ class TMPC(object):
         x_ref = ca.MX.sym('x_ref', self.Nx*(self.Nt+1),)
         u0 = ca.MX.sym('u0', self.Nu)
         param_s = ca.vertcat(x0, x_ref, u0)
+        if self.formation:
+            r0 = ca.MX.sym('r0', 3*self.num_neighbours)
+            param_s = ca.vertcat(param_s, r0)
+            if self.role == 'follower' or self.role == 'local_leader':
+                vL = ca.MX.sym('r0', 3)
+                param_s = ca.vertcat(param_s, vL)
 
         # Create optimization variables
         opt_var = ctools.struct_symMX([(
                 ctools.entry('u', shape=(self.Nu,), repeat=self.Nt),
                 ctools.entry('x', shape=(self.Nx,), repeat=self.Nt+1),
         )])
+        if self.formation:
+            opt_var = ctools.struct_symMX([(
+                ctools.entry('u', shape=(self.Nu,), repeat=self.Nt),
+                ctools.entry('x', shape=(self.Nx,), repeat=self.Nt+1),
+                ctools.entry('r', shape=(3*self.num_neighbours,), repeat=self.Nt+1),
+            )])
         self.opt_var = opt_var
         self.num_var = opt_var.size
 
@@ -113,11 +139,15 @@ class TMPC(object):
 
         # Set initial values
         obj = ca.MX(0)
-        con_eq = []
-        con_ineq = []
-        con_ineq_lb = []
-        con_ineq_ub = []
-        con_eq.append(opt_var['x', 0] - x0)
+        self.con_eq = []
+        self.con_ineq = []
+        self.con_ineq_lb = []
+        self.con_ineq_ub = []
+        self.con_eq.append(opt_var['x', 0] - x0)
+
+        # Set initial formation variables
+        if self.formation:
+            self.con_eq.append(opt_var['r', 0] - r0)
 
         # Generate MPC Problem
         for t in range(self.Nt):
@@ -125,73 +155,100 @@ class TMPC(object):
             x_t = opt_var['x', t]
             x_r = x_ref[(t*13):(t*13+13)]
             u_t = opt_var['u', t]
+            if self.formation:
+                r_t = opt_var['r', t]
 
             # Dynamics constraint
             x_t_next = self.dynamics(x_t, u_t)
-            con_eq.append(x_t_next - opt_var['x', t+1])
+            self.con_eq.append(x_t_next - opt_var['x', t+1])
 
             # Input constraints
-            if hasattr(self, 'uub'):
-                con_ineq.append(u_t)
-                con_ineq_ub.append(self.uub)
-                con_ineq_lb.append(np.full((self.Nu,), -ca.inf))
-            if hasattr(self, 'ulb'):
-                con_ineq.append(u_t)
-                con_ineq_ub.append(np.full((self.Nu,), ca.inf))
-                con_ineq_lb.append(self.ulb)
+            if self.uub is not None:
+                self.set_upper_bound_constraint(u_t, self.uub)
+            if self.ulb is not None:
+                self.set_lower_bound_constraint(u_t, self.ulb)
 
             # State constraints
-            if hasattr(self, 'xub'):
-                con_ineq.append(x_t)
-                con_ineq_ub.append(self.xub)
-                con_ineq_lb.append(np.full((self.Nx,), -ca.inf))
-            if hasattr(self, 'xlb'):
-                con_ineq.append(x_t)
-                con_ineq_ub.append(np.full((self.Nx,), ca.inf))
-                con_ineq_lb.append(self.xlb)
+            if self.xub is not None:
+                self.set_upper_bound_constraint(x_t, self.xub)
+            if self.xlb is not None:
+                self.set_lower_bound_constraint(x_t, self.xlb)
 
-            # ZCBF constraints
-            if hasattr(self, "use_zcbf") and t == 0:
-                hp_ineq, hq_ineq = self.model.get_barrier_value(x_t, x_r, u_t)
-                con_ineq.append(hp_ineq)
-                con_ineq_lb.append(0)
-                con_ineq_ub.append(ca.inf)
+            if self.formation:
+                # Set propagation rules for formation context
+                if self.role == 'leader':
+                    v = x_t[3:6]
+                    r_next = ca.MX.sym('r_next')
+                    for i in range(self.num_neighbours):
+                        rF = r_t[(i*3):(3*i+3)]
+                        r_d = self.fg[:, i]
+                        r_next_f = self.follower_dynamics(v, rF, r_d)
+                        r_next = ca.vertcat(r_next, r_next_f)
 
-                con_ineq.append(hq_ineq)
-                con_ineq_lb.append(0)
-                con_ineq_ub.append(ca.inf)
-                pass
+                elif self.role == 'local_leader':
+                    r_next = ca.MX.sym('r_next')
+                    v = x_t[3:6]
+                    q = x_t[6:10]
+                    rL = r_t[0:3]
+                    r_next_l = self.leader_dynamics(v, q, rL, vL)
+                    r_next = ca.vertcat(r_next, r_next_l)
+                    for i in range(1, self.num_neighbours-1, 1):
+                        rF = r_t[(i*3):(3*i+3)]
+                        r_d = self.fg[:, i]
+                        r_next_f = self.follower_dynamics(v, rF, r_d)
+                        r_next = ca.vertcat(r_next, r_next_f)
+
+                else:  # Follower only needs to propagate leader
+                    v = x_t[3:6]
+                    q = x_t[6:10]
+                    rL = r_t[0:3]
+                    r_next = self.leader_dynamics(v, q, rL, vL)
+
+                # Set dynamics constraint for neighbours
+                self.con_eq.append(r_next - opt_var['r', t+1])
 
             # Objective Function / Cost Function
-            obj += self.running_cost(x_t, x_r, self.Q, u_t, self.R)
+            if self.formation:
+                if self.role == 'leader':
+                    obj += self.running_cost(x_t, x_r, self.Q, u_t, self.R)
+                elif self.role == 'local_leader':
+                    pass
+            else:
+                obj += self.running_cost(x_t, x_r, self.Q, u_t, self.R)
 
         # Terminal Cost
         obj += self.terminal_cost(opt_var['x', self.Nt],
                                   x_ref[self.Nt*13:], self.P)
 
-        # Terminal contraint
-        if hasattr(self, 'tc_lb') and hasattr(self, 'tc_ub'):
-            con_ineq.append(opt_var['x', self.Nt] - x_ref[self.Nt*13:])
-            con_ineq_lb.append(self.tc_lb)
-            con_ineq_ub.append(self.tc_ub)
+        # Terminal constraint
+        if self.tc_ub is not None and self.tc_lb is not None:
+            self.set_lower_bound_constraint(opt_var['x', self.Nt] - x_ref[self.Nt*13:],
+                                            self.tc_lb)
+            self.set_upper_bound_constraint(opt_var['x', self.Nt] - x_ref[self.Nt*13:],
+                                            self.tc_ub)
 
         # Equality constraints bounds are 0 (they are equality constraints),
         # -> Refer to CasADi documentation
-        num_eq_con = ca.vertcat(*con_eq).size1()
-        num_ineq_con = ca.vertcat(*con_ineq).size1()
+        num_eq_con = ca.vertcat(*self.con_eq).size1()
+        num_ineq_con = ca.vertcat(*self.con_ineq).size1()
         con_eq_lb = np.zeros((num_eq_con, 1))
         con_eq_ub = np.zeros((num_eq_con, 1))
 
         # Set constraints
-        con = ca.vertcat(*(con_eq+con_ineq))
-        self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
-        self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
+        con = ca.vertcat(*(self.con_eq+self.con_ineq))
+        self.con_lb = ca.vertcat(con_eq_lb, *self.con_ineq_lb)
+        self.con_ub = ca.vertcat(con_eq_ub, *self.con_ineq_ub)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
 
         # Instantiate solver
-        self.set_dictionaries(nlp)
-        self.solver = self.solver_dict[self.solver_type]
-
+        if self.solver_type == "sqpmethod":
+            self.solver = ca.nlpsol('mpc_solver', 'sqpmethod', nlp,
+                                    self.sol_options_sqp)
+        elif self.solver_type == "ipopt":
+            self.solver = ca.nlpsol('mpc_solver', 'ipopt', nlp,
+                                    self.sol_options_ipopt)
+        else:
+            raise ValueError("Wrong solver selected.")
         build_solver_time += time.time()
         print('\n________________________________________')
         print('# Receding horizon length: %d ' % self.Nt)
@@ -201,6 +258,30 @@ class TMPC(object):
         print('# Number of inequality constraints: %d' % num_ineq_con)
         print('----------------------------------------')
         pass
+
+    def set_lower_bound_constraint(self, var, value):
+        """
+        Set a lower bound constraint for the variable var.
+        :param var: variable to lower bound
+        :type var: ca.MX, ca.DM
+        :param value: lower bound value
+        :type value: np.ndarray
+        """
+        self.con_ineq.append(var)
+        self.con_ineq_ub.append(np.full((var.shape[0],), ca.inf))
+        self.con_ineq_lb.append(value)
+
+    def set_upper_bound_constraint(self, var, value):
+        """
+        Set a upper bound constraint for the variable var.
+        :param var: variable to upper bound
+        :type var: ca.MX, ca.DM
+        :param value: upper bound value
+        :type value: np.ndarray
+        """
+        self.con_ineq.append(var)
+        self.con_ineq_lb.append(np.full((var.shape[0],), -ca.inf))
+        self.con_ineq_ub.append(value)
 
     def set_options_dicts(self):
         """
@@ -245,6 +326,9 @@ class TMPC(object):
         return True
 
     def set_jit(self):
+        """
+        Helper function to update the dictionaries with jit attributed.
+        """
 
         self.fun_options = {
             "jit": True,
@@ -266,6 +350,13 @@ class TMPC(object):
             "jit_options": {"flags": ["-O2"]}})
 
     def set_solver_dictionaries(self, nlp):
+        """
+        Helper function to create the solver dictionares to abstract the need
+        for different options for each solver.
+
+        :param nlp: NLP problem being solved.
+        :type nlp: ca.nlpsol
+        """
 
         self.solver_dict = {
             'sqpmethod': ca.nlpsol('mpc_solver', 'sqpmethod', nlp,
@@ -306,20 +397,30 @@ class TMPC(object):
         eq = 0.5*inv_skew(ca.mtimes(r_mat(qr).T, r_mat(q))
                           - ca.mtimes(r_mat(q).T, r_mat(qr)))
 
-        e_vec = ca.vertcat(*[ep, ev, eq, ew])
+        if not self.formation:
+            e_vec = ca.vertcat(*[ep, ev, eq, ew])
 
-        # Calculate running cost
-        ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec)
-        ln = ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec) \
-            + ca.mtimes(ca.mtimes(u.T, R), u)
+            # Calculate running cost
+            ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec)
+            ln = ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec) \
+                + ca.mtimes(ca.mtimes(u.T, R), u)
 
-        self.running_cost = ca.Function('ln', [x, xr, Q, u, R], [ln],
-                                        self.fun_options)
+            self.running_cost = ca.Function('ln', [x, xr, Q, u, R], [ln],
+                                            self.fun_options)
 
-        # Calculate terminal cost
-        V = ca.mtimes(ca.mtimes(e_vec.T, P), e_vec)
-        self.terminal_cost = ca.Function('V', [x, xr, P], [V],
-                                         self.fun_options)
+            # Calculate terminal cost
+            V = ca.mtimes(ca.mtimes(e_vec.T, P), e_vec)
+            self.terminal_cost = ca.Function('V', [x, xr, P], [V],
+                                             self.fun_options)
+        else:
+            if self.role == 'leader':
+                # Set leader cost functions
+                pass
+            elif self.role == 'local_leader':
+                # Set follower cost functions
+                pass
+            else:
+                pass
 
         return
 

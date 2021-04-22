@@ -3,7 +3,7 @@ import numpy as np
 import scipy
 
 from reswarm_dmpc.models.astrobee import Astrobee
-from reswarm_dmpc.controllers.mpc_trajectory import TMPC
+from reswarm_dmpc.controllers.trajectory.mpc_trajectory import TMPC
 from reswarm_dmpc.simulation_trajectory import EmbeddedSimEnvironment
 
 # Instantiante Model

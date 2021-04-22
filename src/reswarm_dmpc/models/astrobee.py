@@ -58,10 +58,10 @@ class Astrobee(object):
             # Check existence of number of neighbours paramter
             assert 'num_neighbours' in kwargs, "Missing number of neighbors"
             assert type(kwargs['num_neighbours']) is int, "Wrong data type for\
-                   'num_neighbors'. Should be int."
+                   'num_neighbours'. Should be int."
             assert kwargs['num_neighbours'] > 0, "Invalid number of numbers.\
                    Should be bigger than 0."
-            self.num_neighbors = kwargs['num_neighbours']
+            self.num_neighbours = kwargs['num_neighbours']
 
             # Define neighbors dynamics depending on the role
             if kwargs['role'] == 'leader':
@@ -92,7 +92,7 @@ class Astrobee(object):
             #
             assert 'fg' in kwargs, "Missing formation geometry param 'fg'."
             assert np.shape(kwargs['fg'])[0] == 3 and \
-                   np.shape(kwargs['fg'])[1] == self.num_neighbors, \
+                   np.shape(kwargs['fg'])[1] == self.num_neighbours, \
                    "Wrong formation geometry shape. Should be 3 x #neighbours"
             self.fg = kwargs['fg']
 
