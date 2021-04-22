@@ -4,7 +4,7 @@ import scipy
 import rospy
 
 from reswarm_dmpc.models.astrobee import Astrobee
-from reswarm_dmpc.controllers.mpc import MPC
+from reswarm_dmpc.controllers.setpoint.mpc import MPC
 from reswarm_dmpc.simulation import EmbeddedSimEnvironment
 
 import geometry_msgs.msg

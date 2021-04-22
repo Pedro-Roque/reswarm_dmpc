@@ -12,16 +12,14 @@ import numpy as np
 import numpy.matlib as nmp
 import casadi as ca
 import casadi.tools as ctools
-from scipy.stats import norm
-import scipy.linalg
 
 from reswarm_dmpc.util import *
 
 
-class TMPC(object):
+class FollowerMPC(object):
 
     def __init__(self, model, dynamics,
-                 Q, P, R, solver_type='sqpmethod', horizon=10,
+                 Q, P, R, Qr, Pr, solver_type='sqpmethod', horizon=10,
                  **kwargs):
         """
         MPC Controller Class for setpoint stabilization
@@ -63,6 +61,8 @@ class TMPC(object):
         self.Q = ca.MX(Q)
         self.P = ca.MX(P)
         self.R = ca.MX(R)
+        self.Qr = ca.MX(Qr)
+        self.Pr = ca.MX(Pr)
 
         self.x_sp = None
 
@@ -78,17 +78,24 @@ class TMPC(object):
         if "terminal_constraint" in kwargs:
             self.tc_ub = np.full((self.Nx,), kwargs["terminal_constraint"])
             self.tc_lb = np.full((self.Nx,), -kwargs["terminal_constraint"])
+        else:
+            self.tc_lb = None
+            self.tc_ub = None
 
         # Check if we are in formation context
-        self.formation = False
-        if hasattr(self.model, 'role'):
-            self.formation = True
+        if hasattr(model, 'role'):
+            assert model.role == 'follower', "Wrong controller for " + \
+                                 "agent role. Please choose a controller" + \
+                                 " for "+model.role+" role."
             self.role = self.model.role
             self.num_neighbours = self.model.num_neighbours
+            assert self.num_neighbours == 1, "Follower can only have one" + \
+                                             "neighbour, the local leader."
+            self.Nr = 3*self.num_neighbours
             self.fg = self.model.fg
+            self.rr = self.fg.reshape(self.Nr,)
 
             # Dynamics
-            self.follower_dynamics = self.model.next_follower_rpos
             self.leader_dynamics = self.model.next_local_leader_rpos
 
         # Set internal solver properties
@@ -97,7 +104,7 @@ class TMPC(object):
             self.set_jit()
 
         self.set_cost_functions()
-        self.test_cost_functions(Q, R, P)
+        self.test_cost_functions(Q, Qr, R, P, Pr)
         self.create_solver()
 
     def create_solver(self):
@@ -112,24 +119,17 @@ class TMPC(object):
         x_ref = ca.MX.sym('x_ref', self.Nx*(self.Nt+1),)
         u0 = ca.MX.sym('u0', self.Nu)
         param_s = ca.vertcat(x0, x_ref, u0)
-        if self.formation:
-            r0 = ca.MX.sym('r0', 3*self.num_neighbours)
-            param_s = ca.vertcat(param_s, r0)
-            if self.role == 'follower' or self.role == 'local_leader':
-                vL = ca.MX.sym('r0', 3)
-                param_s = ca.vertcat(param_s, vL)
+
+        # Formation parameter
+        r0 = ca.MX.sym('r0', self.Nr)
+        param_s = ca.vertcat(param_s, r0)
 
         # Create optimization variables
         opt_var = ctools.struct_symMX([(
-                ctools.entry('u', shape=(self.Nu,), repeat=self.Nt),
-                ctools.entry('x', shape=(self.Nx,), repeat=self.Nt+1),
+            ctools.entry('u', shape=(self.Nu,), repeat=self.Nt),
+            ctools.entry('x', shape=(self.Nx,), repeat=self.Nt+1),
+            ctools.entry('r', shape=(self.Nr,), repeat=self.Nt+1),
         )])
-        if self.formation:
-            opt_var = ctools.struct_symMX([(
-                ctools.entry('u', shape=(self.Nu,), repeat=self.Nt),
-                ctools.entry('x', shape=(self.Nx,), repeat=self.Nt+1),
-                ctools.entry('r', shape=(3*self.num_neighbours,), repeat=self.Nt+1),
-            )])
         self.opt_var = opt_var
         self.num_var = opt_var.size
 
@@ -146,8 +146,7 @@ class TMPC(object):
         self.con_eq.append(opt_var['x', 0] - x0)
 
         # Set initial formation variables
-        if self.formation:
-            self.con_eq.append(opt_var['r', 0] - r0)
+        self.con_eq.append(opt_var['r', 0] - r0)
 
         # Generate MPC Problem
         for t in range(self.Nt):
@@ -155,8 +154,7 @@ class TMPC(object):
             x_t = opt_var['x', t]
             x_r = x_ref[(t*13):(t*13+13)]
             u_t = opt_var['u', t]
-            if self.formation:
-                r_t = opt_var['r', t]
+            r_t = opt_var['r', t]
 
             # Dynamics constraint
             x_t_next = self.dynamics(x_t, u_t)
@@ -174,51 +172,24 @@ class TMPC(object):
             if self.xlb is not None:
                 self.set_lower_bound_constraint(x_t, self.xlb)
 
-            if self.formation:
-                # Set propagation rules for formation context
-                if self.role == 'leader':
-                    v = x_t[3:6]
-                    r_next = ca.MX.sym('r_next')
-                    for i in range(self.num_neighbours):
-                        rF = r_t[(i*3):(3*i+3)]
-                        r_d = self.fg[:, i]
-                        r_next_f = self.follower_dynamics(v, rF, r_d)
-                        r_next = ca.vertcat(r_next, r_next_f)
+            # Set propagation rules for formation context
+            v = x_t[3:6]
+            vL = x_r[3:6]
+            q = x_t[6:10]
+            rL = r_t[0:3]
+            r_next = self.leader_dynamics(v, q, rL, vL)
 
-                elif self.role == 'local_leader':
-                    r_next = ca.MX.sym('r_next')
-                    v = x_t[3:6]
-                    q = x_t[6:10]
-                    rL = r_t[0:3]
-                    r_next_l = self.leader_dynamics(v, q, rL, vL)
-                    r_next = ca.vertcat(r_next, r_next_l)
-                    for i in range(1, self.num_neighbours-1, 1):
-                        rF = r_t[(i*3):(3*i+3)]
-                        r_d = self.fg[:, i]
-                        r_next_f = self.follower_dynamics(v, rF, r_d)
-                        r_next = ca.vertcat(r_next, r_next_f)
-
-                else:  # Follower only needs to propagate leader
-                    v = x_t[3:6]
-                    q = x_t[6:10]
-                    rL = r_t[0:3]
-                    r_next = self.leader_dynamics(v, q, rL, vL)
-
-                # Set dynamics constraint for neighbours
-                self.con_eq.append(r_next - opt_var['r', t+1])
+            # Set dynamics constraint for neighbours
+            self.con_eq.append(r_next - opt_var['r', t+1])
 
             # Objective Function / Cost Function
-            if self.formation:
-                if self.role == 'leader':
-                    obj += self.running_cost(x_t, x_r, self.Q, u_t, self.R)
-                elif self.role == 'local_leader':
-                    pass
-            else:
-                obj += self.running_cost(x_t, x_r, self.Q, u_t, self.R)
+            obj += self.running_cost(x_t, x_r, self.Q, r_t, self.rr, self.Qr,
+                                     u_t, self.R)
 
         # Terminal Cost
         obj += self.terminal_cost(opt_var['x', self.Nt],
-                                  x_ref[self.Nt*13:], self.P)
+                                  x_ref[self.Nt*13:], self.P,
+                                  opt_var['r', self.Nt], self.rr, self.Pr)
 
         # Terminal constraint
         if self.tc_ub is not None and self.tc_lb is not None:
@@ -289,7 +260,7 @@ class TMPC(object):
         """
 
         # Functions options
-        self.fun_options = None
+        self.fun_options = {}
 
         # Options for NLP Solvers
         # -> SQP Method
@@ -372,11 +343,17 @@ class TMPC(object):
 
         # Create functions and function variables for calculating the cost
         Q = ca.MX.sym('Q', self.Nx-1, self.Nx-1)
+        Qr = ca.MX.sym('Qr', self.Nr, self.Nr)    # Cost of rel. pos. error
         P = ca.MX.sym('P', self.Nx-1, self.Nx-1)
+        Pr = ca.MX.sym('Pr', self.Nr, self.Nr)
         R = ca.MX.sym('R', self.Nu, self.Nu)
 
         x = ca.MX.sym('x', self.Nx)
         xr = ca.MX.sym('xr', self.Nx)
+
+        r = ca.MX.sym('r', self.Nr)
+        rr = ca.MX.sym('rr', self.Nr)
+
         u = ca.MX.sym('u', self.Nu)
 
         # Prepare variables
@@ -390,57 +367,53 @@ class TMPC(object):
         qr = xr[6:10]
         wr = xr[10:]
 
-        # Calculate errors
+        # Calculate internal state errors
         ep = p - pr
         ev = v - vr
         ew = w - wr
         eq = 0.5*inv_skew(ca.mtimes(r_mat(qr).T, r_mat(q))
                           - ca.mtimes(r_mat(q).T, r_mat(qr)))
 
-        if not self.formation:
-            e_vec = ca.vertcat(*[ep, ev, eq, ew])
+        e_vec = ca.vertcat(*[ep, ev, eq, ew])
 
-            # Calculate running cost
-            ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec)
-            ln = ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec) \
-                + ca.mtimes(ca.mtimes(u.T, R), u)
+        # Calculate relative position error
+        er = r - rr
 
-            self.running_cost = ca.Function('ln', [x, xr, Q, u, R], [ln],
-                                            self.fun_options)
+        # Calculate running cost
+        ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec)
+        ln = ca.mtimes(ca.mtimes(e_vec.T, Q), e_vec) \
+            + ca.mtimes(ca.mtimes(u.T, R), u) \
+            + ca.mtimes(ca.mtimes(er.T, Qr), er)
 
-            # Calculate terminal cost
-            V = ca.mtimes(ca.mtimes(e_vec.T, P), e_vec)
-            self.terminal_cost = ca.Function('V', [x, xr, P], [V],
-                                             self.fun_options)
-        else:
-            if self.role == 'leader':
-                # Set leader cost functions
-                pass
-            elif self.role == 'local_leader':
-                # Set follower cost functions
-                pass
-            else:
-                pass
+        self.running_cost = ca.Function('ln', [x, xr, Q, r, rr, Qr, u, R],
+                                        [ln], self.fun_options)
+
+        # Calculate terminal cost
+        V = ca.mtimes(ca.mtimes(e_vec.T, P), e_vec) \
+            + ca.mtimes(ca.mtimes(er.T, Pr), er)
+        self.terminal_cost = ca.Function('V', [x, xr, P, r, rr, Pr], [V],
+                                         self.fun_options)
 
         return
 
-    def test_cost_functions(self, Q, R, P):
+    def test_cost_functions(self, Q, Qr, R, P, Pr):
         """
         Helper function to test the cost functions.
         """
-        x = ca.DM.zeros(13, 1)
-        xr = ca.DM.zeros(13, 1)
-        u = ca.DM.zeros(6, 1)
+        x = ca.DM.zeros(self.Nx, 1)
+        xr = ca.DM.zeros(self.Nx, 1)
+        u = ca.DM.zeros(self.Nu, 1)
         x[10] = 1
         xr[10] = 1
+        r = ca.DM.zeros(self.Nr, 1)
+        rr = ca.DM.zeros(self.Nr, 1)
 
-        print("Running cost:", self.running_cost(x, xr, Q, u, R))
-
-        print("Terminal cost:", self.terminal_cost(x, xr, P))
+        print("Running cost:", self.running_cost(x, xr, Q, r, rr, Qr, u, R))
+        print("Terminal cost:", self.terminal_cost(x, xr, P, r, rr, Pr))
 
         return
 
-    def solve_mpc(self, x0, u0=None):
+    def solve_mpc(self, x0, xr, r0):
         """
         Solve the MPC problem
 
@@ -453,14 +426,7 @@ class TMPC(object):
         """
 
         # Initial state
-        if u0 is None:
-            u0 = np.zeros(self.Nu)
-        if self.x_sp is None:
-            self.x_sp = nmp.repmat(np.array([[0, 0.5, 0,
-                                              0, 0, 0,
-                                              0, 0, 0, 1,
-                                              0, 0, 0]]).T, self.Nt+1, 1)
-            print("Setpoint dimension:", np.size(self.x_sp))
+        u0 = np.zeros(self.Nu)
 
         # Initialize variables
         self.optvar_x0 = np.full((1, self.Nx), x0.T)
@@ -469,7 +435,8 @@ class TMPC(object):
         self.optvar_init = self.opt_var(0)
         self.optvar_init['x', 0] = self.optvar_x0[0]
 
-        param = ca.vertcat(x0, self.x_sp, u0)
+        # Create arguments structure
+        param = ca.vertcat(x0, xr, u0, r0)
         args = dict(x0=self.optvar_init,
                     lbx=self.optvar_lb,
                     ubx=self.optvar_ub,
@@ -477,7 +444,7 @@ class TMPC(object):
                     ubg=self.con_ub,
                     p=param)
 
-        # Solve NLP - TODO fix this
+        # Solve NLP
         solve_time = -time.time()
         sol = self.solver(**args)
         solve_time += time.time()
@@ -490,12 +457,12 @@ class TMPC(object):
         self.solve_time = solve_time
 
         print ('Solver status: ', status)
-        # print('MPC took %f seconds to solve.' % (solve_time))
+        print('MPC took %f seconds to solve.' % (solve_time))
         print('MPC cost: ', sol['f'])
 
         return optvar['x'], optvar['u']
 
-    def mpc_controller(self, x0, t0):
+    def controller(self, x0, xr, r0):
         """
         MPC interface.
 
@@ -506,24 +473,10 @@ class TMPC(object):
         :return: first control input
         :rtype: ca.DM
         """
-        # Generate trajectory from t0 and x0
-        x_sp_vec = self.model.get_trajectory(x0, t0, self.Nt+1)
-        ref = x_sp_vec[:, 0]
-        x_sp = x_sp_vec.reshape(self.Nx*(self.Nt+1), order='F')
-        self.set_reference(x_sp)
 
-        x_pred, u_pred = self.solve_mpc(x0)
+        x_pred, u_pred = self.solve_mpc(x0, xr, r0)
 
-        return u_pred[0], ref, x_pred, x_sp_vec
-
-    def set_reference(self, x_sp):
-        """
-        Set MPC reference.
-
-        :param x_sp: reference for the state
-        :type x_sp: ca.DM
-        """
-        self.x_sp = x_sp
+        return u_pred[0], x_pred
 
     def get_last_solve_time(self):
         """
