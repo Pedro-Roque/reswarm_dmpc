@@ -16,7 +16,7 @@ import casadi.tools as ctools
 from reswarm_dmpc.util import *
 
 
-class FollowerMPC(object):
+class DecentralizedFormationMPC(object):
 
     def __init__(self, model, dynamics,
                  Q, P, R, Qr, Pr, solver_type='sqpmethod', horizon=10,
@@ -84,19 +84,20 @@ class FollowerMPC(object):
 
         # Check if we are in formation context
         if hasattr(model, 'role'):
-            assert model.role == 'follower', "Wrong controller for " + \
-                                 "agent role. Please choose a controller" + \
-                                 " for "+model.role+" role."
             self.role = self.model.role
             self.num_neighbours = self.model.num_neighbours
-            assert self.num_neighbours == 1, "Follower can only have one" + \
-                                             "neighbour, the local leader."
             self.Nr = 3*self.num_neighbours
             self.fg = self.model.fg
             self.rr = self.fg.reshape(self.Nr,)
 
             # Dynamics
-            self.leader_dynamics = self.model.next_local_leader_rpos
+            if model.role == 'leader':
+                self.follower_dynamics = self.model.next_follower_rpos
+            elif model.role == 'local_leader':
+                self.follower_dynamics = self.model.next_follower_rpos
+                self.leader_dynamics = self.model.next_local_leader_rpos
+            else:
+                self.leader_dynamics = self.model.next_local_leader_rpos
 
         # Set internal solver properties
         self.set_options_dicts()
@@ -173,11 +174,35 @@ class FollowerMPC(object):
                 self.set_lower_bound_constraint(x_t, self.xlb)
 
             # Set propagation rules for formation context
-            v = x_t[3:6]
-            vL = x_r[3:6]
-            q = x_t[6:10]
-            rL = r_t[0:3]
-            r_next = self.leader_dynamics(v, q, rL, vL)
+            if self.role == 'leader':
+                v = x_t[3:6]
+                r_next = None
+                for i in range(self.num_neighbours):
+                    rF = r_t[(i*3):(3*i+3)]
+                    r_d = self.fg[:, i]
+                    r_next_f = self.follower_dynamics(v, rF, r_d)
+                    if r_next is None:
+                        r_next = r_next_f
+                    else:
+                        r_next = ca.vertcat(r_next, r_next_f)
+            elif self.role == 'local_leader':
+                v = x_t[3:6]
+                vL = x_r[3:6]
+                q = x_t[6:10]
+                rL = r_t[0:3]
+                r_next_l = self.leader_dynamics(v, q, rL, vL)
+                r_next = r_next_l
+                for i in range(1, self.num_neighbours, 1):
+                    rF = r_t[(i*3):(3*i+3)]
+                    r_d = self.fg[:, i]
+                    r_next_f = self.follower_dynamics(v, rF, r_d)
+                    r_next = ca.vertcat(r_next, r_next_f)
+            else: 
+                v = x_t[3:6]
+                vL = x_r[3:6]
+                q = x_t[6:10]
+                rL = r_t[0:3]
+                r_next = self.leader_dynamics(v, q, rL, vL)
 
             # Set dynamics constraint for neighbours
             self.con_eq.append(r_next - opt_var['r', t+1])
@@ -210,16 +235,10 @@ class FollowerMPC(object):
         self.con_lb = ca.vertcat(con_eq_lb, *self.con_ineq_lb)
         self.con_ub = ca.vertcat(con_eq_ub, *self.con_ineq_ub)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
+        self.set_solver_dictionaries(nlp)
 
-        # Instantiate solver
-        if self.solver_type == "sqpmethod":
-            self.solver = ca.nlpsol('mpc_solver', 'sqpmethod', nlp,
-                                    self.sol_options_sqp)
-        elif self.solver_type == "ipopt":
-            self.solver = ca.nlpsol('mpc_solver', 'ipopt', nlp,
-                                    self.sol_options_ipopt)
-        else:
-            raise ValueError("Wrong solver selected.")
+        # Create solver
+        self.solver = self.solver_dict[self.solver_type]
         build_solver_time += time.time()
         print('\n________________________________________')
         print('# Receding horizon length: %d ' % self.Nt)

@@ -3,9 +3,7 @@ import numpy as np
 import scipy
 
 from reswarm_dmpc.models.astrobee import Astrobee
-from reswarm_dmpc.controllers.formation.mpc_leader import LeaderMPC
-from reswarm_dmpc.controllers.formation.mpc_local_leader import LocalLeaderMPC
-from reswarm_dmpc.controllers.formation.mpc_follower import FollowerMPC
+from reswarm_dmpc.controllers.formation.dmpc import DecentralizedFormationMPC
 from reswarm_dmpc.simulation_trajectory import EmbeddedSimEnvironment
 
 """
@@ -37,7 +35,7 @@ P = Q*100
 Qr = np.diag([10, 10, 10])
 Pr = Qr*100
 
-leader_ctl = LeaderMPC(
+leader_ctl = DecentralizedFormationMPC(
         model=leader,
         dynamics=leader.model,
         horizon=2,
@@ -59,7 +57,7 @@ P = Q*100
 Qr = np.diag([10, 10, 10, 10, 10, 10])
 Pr = Qr*100
 
-local_leader_ctl = LocalLeaderMPC(
+local_leader_ctl = DecentralizedFormationMPC(
         model=sub_leader,
         dynamics=sub_leader.model,
         horizon=2,
@@ -81,7 +79,7 @@ P = Q*100
 Qr = np.diag([10, 10, 10])
 Pr = Qr*100
 
-follower_ctl = FollowerMPC(
+follower_ctl = DecentralizedFormationMPC(
         model=follower,
         dynamics=follower.model,
         horizon=2,
