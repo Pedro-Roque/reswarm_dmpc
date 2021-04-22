@@ -15,19 +15,19 @@ formation ( f1<-l->f2 ).
 """
 
 # Line formation
-#
-# Instantiate Models
-f_geom = np.array([[-1, 0, 0]]).T
+# - Instantiate Models
+f_geom_l = np.array([[-1, 0, 0]]).T
+f_geom_sl = np.array([[1, 0, 0], [-1, 0, 0]]).T
+f_geom_f = np.array([[1, 0, 0]]).T
+
 leader = Astrobee(h=0.2, iface='casadi', role='leader',
-                  vmax=0.2, num_neighbours=1, fg=f_geom)
+                  vmax=0.2, num_neighbours=1, fg=f_geom_l)
 
-f_geom = np.array([[1, 0, 0], [-1, 0, 0]]).T
 sub_leader = Astrobee(h=0.2, iface='casadi', role='local_leader',
-                      vmax=0.2, num_neighbours=2, fg=f_geom)
+                      vmax=0.2, num_neighbours=2, fg=f_geom_sl)
 
-f_geom = np.array([[1, 0, 0]]).T
 follower = Astrobee(h=0.2, iface='casadi', role='follower',
-                    vmax=0.2, num_neighbours=1, fg=f_geom)
+                    vmax=0.2, num_neighbours=1, fg=f_geom_f)
 
 # Create controllers for each agent
 # - Leader
