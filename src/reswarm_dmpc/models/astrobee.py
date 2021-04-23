@@ -130,14 +130,18 @@ class Astrobee(object):
         Applies the prediction model in  @TODO(Pedro-Roque): ref to paper.
         """
 
-        v = ca.MX.sym('v', 3, 1)
-        rpos0 = ca.MX.sym('rpos', 3, 1)
-        rposD = ca.MX.sym('rposD', 3, 1)
-        next_follower_rpos = self.follower_dynamics(v, rpos0, rpos0)
-        self.next_follower_rpos = ca.Function('FollowerRPos',
-                                              [v, rpos0, rposD],
-                                              [next_follower_rpos],
-                                              self.fun_options)
+        rk4 = False
+        if rk4 is True:
+            self.next_follower_rpos = self.rk4_integrator_rpos(self.follower_dynamics)
+        else:
+            v = ca.MX.sym('v', 3, 1)
+            rpos0 = ca.MX.sym('rpos', 3, 1)
+            rposD = ca.MX.sym('rposD', 3, 1)
+            next_follower_rpos = self.follower_dynamics(v, rpos0, rposD)
+            self.next_follower_rpos = ca.Function('FollowerRPos',
+                                        [v, rpos0, rposD],
+                                        [next_follower_rpos],
+                                        self.fun_options)
 
     def set_local_leader_dynamics(self):
         """
@@ -169,10 +173,11 @@ class Astrobee(object):
         """
         vmax = self.neighbours_vmax
         alpha = 1  # Exponential decay
-        eps = 0.0001  # Epsilon for zero singularity
+        eps = 0.001  # Epsilon for zero singularity
 
         e_rpos = rposD - rpos
         e_vf = vmax*(1.0 - ca.exp(-alpha*ca.norm_2(e_rpos)))
+        # next_rpos = (e_rpos)/(ca.norm_2(e_rpos)+eps)*(e_vf - ca.norm_2(v))
         next_rpos = rpos + ((e_rpos)/(ca.norm_2(e_rpos)+eps))*(e_vf - ca.norm_2(v))
 
         return next_rpos
@@ -238,6 +243,21 @@ class Astrobee(object):
             next_state[6:10] = next_state[6:10]/ca.norm_2(next_state[6:10])
             return np.asarray(next_state)
 
+    def test_rel_pos_dynamics(self):
+        """
+        Helper function to test relative position dynamics.
+        """
+        if hasattr(self, 'role'):
+            if self.role == 'leader':
+                r0 = np.array([[-1.0, 0, 0]]).T
+                print("Starting relative position: ", r0)
+                rd = np.array([[-1.1, 0, 0]]).T
+                print("Desired relative position: ", rd)
+                for i in range(10):
+                    next_pos = self.follower_dynamics(0, r0, rd)
+                    print("Next Relative Position: ", next_pos)
+                    r0 = next_pos
+
     def rk4_integrator(self, dynamics):
         """
         Runge-Kutta 4th Order discretization.
@@ -262,6 +282,25 @@ class Astrobee(object):
 
         # Normalize quaternion: TODO(Pedro-Roque): check best way to propagate
         rk4 = ca.Function('RK4', [x0, u], [xdot], self.fun_options)
+
+        return rk4
+
+    def rk4_integrator_rpos(self, dynamics):
+
+        v = ca.MX.sym('v', 3, 1)
+        rpos0 = ca.MX.sym('rpos', 3, 1)
+        rposD = ca.MX.sym('rposD', 3, 1)
+
+        x = rpos0
+
+        k1 = dynamics(v, x, rposD)
+        k2 = dynamics(v, x + self.dt / 2 * k1, rposD)
+        k3 = dynamics(v, x + self.dt / 2 * k2, rposD)
+        k4 = dynamics(v, x + self.dt * k3, rposD)
+        xdot = rpos0 + self.dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+
+        # Normalize quaternion: TODO(Pedro-Roque): check best way to propagate
+        rk4 = ca.Function('RK4', [v, rpos0, rposD], [xdot], self.fun_options)
 
         return rk4
 

@@ -128,8 +128,8 @@ class DecentralizedFormationMPC(object):
         # Create optimization variables
         opt_var = ctools.struct_symMX([(
             ctools.entry('u', shape=(self.Nu,), repeat=self.Nt),
-            ctools.entry('x', shape=(self.Nx,), repeat=self.Nt+1),
             ctools.entry('r', shape=(self.Nr,), repeat=self.Nt+1),
+            ctools.entry('x', shape=(self.Nx,), repeat=self.Nt+1),
         )])
         self.opt_var = opt_var
         self.num_var = opt_var.size
@@ -157,10 +157,6 @@ class DecentralizedFormationMPC(object):
             u_t = opt_var['u', t]
             r_t = opt_var['r', t]
 
-            # Dynamics constraint
-            x_t_next = self.dynamics(x_t, u_t)
-            self.con_eq.append(x_t_next - opt_var['x', t+1])
-
             # Input constraints
             if self.uub is not None:
                 self.set_upper_bound_constraint(u_t, self.uub)
@@ -172,6 +168,10 @@ class DecentralizedFormationMPC(object):
                 self.set_upper_bound_constraint(x_t, self.xub)
             if self.xlb is not None:
                 self.set_lower_bound_constraint(x_t, self.xlb)
+
+            # Objective Function / Cost Function
+            obj += self.running_cost(x_t, x_r, self.Q, r_t, self.rr, self.Qr,
+                                     u_t, self.R)
 
             # Set propagation rules for formation context
             if self.role == 'leader':
@@ -185,6 +185,7 @@ class DecentralizedFormationMPC(object):
                         r_next = r_next_f
                     else:
                         r_next = ca.vertcat(r_next, r_next_f)
+
             elif self.role == 'local_leader':
                 v = x_t[3:6]
                 vL = x_r[3:6]
@@ -197,7 +198,7 @@ class DecentralizedFormationMPC(object):
                     r_d = self.fg[:, i]
                     r_next_f = self.follower_dynamics(v, rF, r_d)
                     r_next = ca.vertcat(r_next, r_next_f)
-            else: 
+            elif self.role == 'follower':
                 v = x_t[3:6]
                 vL = x_r[3:6]
                 q = x_t[6:10]
@@ -207,9 +208,9 @@ class DecentralizedFormationMPC(object):
             # Set dynamics constraint for neighbours
             self.con_eq.append(r_next - opt_var['r', t+1])
 
-            # Objective Function / Cost Function
-            obj += self.running_cost(x_t, x_r, self.Q, r_t, self.rr, self.Qr,
-                                     u_t, self.R)
+            # Dynamics constraint
+            x_t_next = self.dynamics(x_t, u_t)
+            self.con_eq.append(x_t_next - opt_var['x', t+1])
 
         # Terminal Cost
         obj += self.terminal_cost(opt_var['x', self.Nt],
@@ -289,14 +290,19 @@ class DecentralizedFormationMPC(object):
             'print_header': False,
             'print_iter': False
         }
+
+        qp_qpoases = {
+            'error_on_fail': False
+        }
+
         self.sol_options_sqp = {
             'max_iter': 3,
             'qpsol': 'qrqp',
             'convexify_margin': 1e-5,
             'print_header': False,
             'print_time': False,
-            'print_iteration': False,
-            'qpsol_options': qp_opts
+            'print_iteration': False
+            # 'qpsol_options': qp_opts
         }
 
         # Options for IPOPT Solver
@@ -311,6 +317,13 @@ class DecentralizedFormationMPC(object):
             'print_time': False,
             'verbose': False,
             'expand': True
+        }
+
+        self.sol_options_scpgen = {
+            'qpsol': 'qpoases',
+            'qpsol_options': qp_qpoases,
+            'print_time': False,
+            'verbose': False
         }
 
         return True
@@ -352,7 +365,9 @@ class DecentralizedFormationMPC(object):
             'sqpmethod': ca.nlpsol('mpc_solver', 'sqpmethod', nlp,
                                    self.sol_options_sqp),
             'ipopt': ca.nlpsol('mpc_solver', 'ipopt', nlp,
-                               self.sol_options_ipopt)
+                               self.sol_options_ipopt),
+            'scpgen': ca.nlpsol('mpc_solver', 'scpgen', nlp,
+                                self.sol_options_scpgen)
         }
 
     def set_cost_functions(self):
@@ -479,7 +494,7 @@ class DecentralizedFormationMPC(object):
         print('MPC took %f seconds to solve.' % (solve_time))
         print('MPC cost: ', sol['f'])
 
-        return optvar['x'], optvar['u']
+        return optvar['x'], optvar['u'], optvar['r']
 
     def controller(self, x0, xr, r0):
         """
@@ -493,9 +508,9 @@ class DecentralizedFormationMPC(object):
         :rtype: ca.DM
         """
 
-        x_pred, u_pred = self.solve_mpc(x0, xr, r0)
+        x_pred, u_pred, r_pred = self.solve_mpc(x0, xr, r0)
 
-        return u_pred[0], x_pred
+        return u_pred[0], x_pred, r_pred
 
     def get_last_solve_time(self):
         """
