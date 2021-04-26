@@ -111,7 +111,7 @@ x0 = np.array([[0, 0, 0, 0.01, 0, 0, 0, 0, 0, 1, 0, 0, 0]]).T
 # Follower checks out good !
 # For follower:
 p0_L = np.array([[1.0, 0, 0]]).T
-v_L = np.array([[0.05, 0, 0]]).T
+v_L = np.array([[0.008, 0, 0]]).T
 fp_rg = ForwardPropagation(dt=.2)
 xr = fp_rg.forward_propagate(11, p0_L, v_L)
 print("Xr: ", xr)
