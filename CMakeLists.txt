@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.5.1)
 project(reswarm_dmpc)
 
-set(acados_include "/home/roque/Git/acados/include")
-set(acados_lib "/home/roque/Git/acados/lib")
-set(NMPC_controller ${PROJECT_SOURCE_DIR}/nodes/c_generated_code)
+set(qpoases ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers/formation/acado/qpoases)
+set(formation_src ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers/formation/acado)
+set(acado_leader_src ${formation_src}/leader)
+set(acado_subleader_src ${formation_src}/sub_leader)
 
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
@@ -25,43 +26,71 @@ catkin_package(
 
 catkin_python_setup()
 
+# TODO(@Pedro-Roque): Set ARM optimizations for MLP
+# if("${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "armv7l")
+#   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mfpu=neon -mfloat-abi=hard -funsafe-math-optimizations")
+#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mfpu=neon -mfloat-abi=hard -funsafe-math-optimizations")
+#   message("enabling ARM neon optimizations")
+# endif()
+
 # Set default include paths and directories
-# include_directories(
-#   ${catkin_INCLUDE_DIRS}
-#   ${NMPC_controller}
-#   ${NMPC_controller}/astrobee_model
-#   ${NMPC_controller}/astrobee_cost
-#   ${acados_include}
-#   ${acados_include}/blasfeo/include/
-#   ${acados_include}/hpipm/include/
-#   ${acados_include}/acados/
-#   ${acados_include}/acados_c/
-#   ${acados_include}/qpOASES_e/
-# )
+include_directories(
+  ${qpoases}/INCLUDE
+  ${qpoases}/SRC
+)
 
-# link_directories(${NMPC_controller} ${acados_lib})
+# NMPC node
+add_definitions( "-fPIC -O3" ) # -O3
+add_library(leader_mpc_lib
+  ${qpoases}/SRC/Bounds.cpp
+  ${qpoases}/SRC/Constraints.cpp
+  ${qpoases}/SRC/CyclingManager.cpp
+  ${qpoases}/SRC/Indexlist.cpp
+  ${qpoases}/SRC/MessageHandling.cpp
+  ${qpoases}/SRC/QProblem.cpp
+  ${qpoases}/SRC/QProblemB.cpp
+  ${qpoases}/SRC/SubjectTo.cpp
+  ${qpoases}/SRC/Utils.cpp
+  ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${acado_leader_src}/acado_qpoases_interface.cpp
+  ${acado_leader_src}/acado_integrator.c
+  ${acado_leader_src}/acado_solver.c
+  ${acado_leader_src}/acado_auxiliary_functions.c
+)
 
-# # NMPC node
-# add_definitions( "-fPIC" ) # -O3
-# add_library(casadi_lib 
-#             ${NMPC_controller}/astrobee_model/astrobee_expl_ode_fun.c 
-#             ${NMPC_controller}/astrobee_model/astrobee_expl_vde_forw.c
-# )
-# add_library(ocp_cost 
-#             ${NMPC_controller}/astrobee_cost/astrobee_cost_ext_cost_0_fun.c
-#             ${NMPC_controller}/astrobee_cost/astrobee_cost_ext_cost_0_fun_jac.c
-#             ${NMPC_controller}/astrobee_cost/astrobee_cost_ext_cost_0_fun_jac_hess.c
-#             ${NMPC_controller}/astrobee_cost/astrobee_cost_ext_cost_fun.c
-#             ${NMPC_controller}/astrobee_cost/astrobee_cost_ext_cost_fun_jac.c
-#             ${NMPC_controller}/astrobee_cost/astrobee_cost_ext_cost_fun_jac_hess.c
-#             ${NMPC_controller}/astrobee_cost/astrobee_cost_ext_cost_e_fun.c
-#             ${NMPC_controller}/astrobee_cost/astrobee_cost_ext_cost_e_fun_jac.c
-#             ${NMPC_controller}/astrobee_cost/astrobee_cost_ext_cost_e_fun_jac_hess.c
-# ) 
-# add_library(ocp_solver 
-#             ${NMPC_controller}/acados_solver_astrobee.c
-#             ${NMPC_controller}/acados_sim_solver_astrobee.c)
-# target_link_libraries(ocp_solver ocp_cost casadi_lib -lacados)
+target_include_directories(leader_mpc_lib PUBLIC 
+  ${acado_leader_src}/
+  ${qpoases}
+  ${qpoases}/SRC
+  ${qpoases}/INCLUDE  
+)
 
-# add_executable(run_acados_compiled ${PROJECT_SOURCE_DIR}/nodes/run_acados_compiled.cpp)
-# target_link_libraries(run_acados_compiled ocp_cost ocp_solver casadi_lib -lhpipm -lacados)
+add_library(subleader_mpc_lib
+  ${qpoases}/SRC/Bounds.cpp
+  ${qpoases}/SRC/Constraints.cpp
+  ${qpoases}/SRC/CyclingManager.cpp
+  ${qpoases}/SRC/Indexlist.cpp
+  ${qpoases}/SRC/MessageHandling.cpp
+  ${qpoases}/SRC/QProblem.cpp
+  ${qpoases}/SRC/QProblemB.cpp
+  ${qpoases}/SRC/SubjectTo.cpp
+  ${qpoases}/SRC/Utils.cpp
+  ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${acado_subleader_src}/acado_qpoases_interface.cpp
+  ${acado_subleader_src}/acado_integrator.c
+  ${acado_subleader_src}/acado_solver.c
+  ${acado_subleader_src}/acado_auxiliary_functions.c
+)
+
+target_include_directories(subleader_mpc_lib PUBLIC 
+  ${acado_subleader_src}/
+  ${qpoases}
+  ${qpoases}/SRC
+  ${qpoases}/INCLUDE  
+)
+
+add_executable(test_acado_leader ${acado_leader_src}/test.c)
+target_link_libraries(test_acado_leader leader_mpc_lib)
+
+add_executable(test_acado_subleader ${acado_subleader_src}/test.c)
+target_link_libraries(test_acado_subleader subleader_mpc_lib)
