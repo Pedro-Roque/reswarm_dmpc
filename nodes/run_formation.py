@@ -5,7 +5,7 @@ import scipy
 from reswarm_dmpc.models.astrobee import Astrobee
 from reswarm_dmpc.controllers.formation.dmpc import DecentralizedFormationMPC
 from reswarm_dmpc.simulation_trajectory import EmbeddedSimEnvironment
-from reswarm_dmpc.reference_generation.sinusoidal import SinusoidalReference
+from reswarm_dmpc.reference_generation.sinusoidal import *
 
 """
 Test node to control 3 agents in a distributed formation. The geometry
@@ -75,17 +75,17 @@ local_leader_ctl = DecentralizedFormationMPC(
 
 # Follower - local leader trajectory should be fed by propagating a-priori
 #            the local leader state
-Q = np.diag([10, 10, 10, 100, 100, 100, 100, 100, 100, 10, 10, 10])
+Q = np.diag([0, 0, 0, 100, 100, 100, 100, 1, 1, 1, 1, 1])
 R = np.diag([0.1, 0.1, 0.1, 0.5, 0.5, 0.5])
 P = Q*100
-Qr = np.diag([10, 10, 10])
+Qr = np.diag([100, 100, 100])
 Pr = Qr*100
 
 follower_ctl = DecentralizedFormationMPC(
         model=follower,
         dynamics=follower.model,
         horizon=2,
-        solver_type='ipopt',
+        solver_type='sqpmethod',
         Q=Q, R=R, P=P, Qr=Qr, Pr=Pr,
         ulb=[-0.6, -0.3, -0.3, -0.06, -0.03, -0.03],
         uub=[0.6, 0.3, 0.3, 0.06, 0.03, 0.03],
@@ -101,11 +101,22 @@ follower_ctl = DecentralizedFormationMPC(
 # each controller, and communicate the velocities information.
 #
 # Test section:
-x0 = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]]).T
-rg = SinusoidalReference(dt=.2, x0=x0)
-rg.create_trajectory()
-xr = rg.get_trajectory(0, 11)
-u, x_pred, r_pred = leader_ctl.controller(x0, xr, np.array([[-1.1, 0, 0]]).T)
+x0 = np.array([[0, 0, 0, 0.01, 0, 0, 0, 0, 0, 1, 0, 0, 0]]).T
+
+# For leader reference
+# sin_rg = SinusoidalReference(dt=.2, x0=x0)
+# sin_rg.create_trajectory()
+# xr = sin_rg.get_trajectory(0, 11)
+
+# Follower checks out good !
+# For follower:
+p0_L = np.array([[1.0, 0, 0]]).T
+v_L = np.array([[0.05, 0, 0]]).T
+fp_rg = ForwardPropagation(dt=.2)
+xr = fp_rg.forward_propagate(11, p0_L, v_L)
+print("Xr: ", xr)
+print("Xr size: ", xr.shape)
+u, x_pred, r_pred = follower_ctl.controller(x0, xr, np.array([[1.0, 0, 0]]).T)
 
 print("U: ", u)
 print("X pred", x_pred)

@@ -91,3 +91,57 @@ class SinusoidalReference(object):
         x_sp = np.append(x_sp, np.ones((1, gen_points)), axis=0)
         x_sp = np.append(x_sp, np.zeros((3, gen_points)), axis=0)
         self.full_trajectory = np.array(x_sp)
+
+
+class ForwardPropagation(object):
+
+    def __init__(self, dt):
+        """
+        Forward propagation class of a given velocity and initial pose.
+
+        :param dt: sample time
+        :type dt: float
+        """
+        
+        self.dt = dt
+        self.full_trajectory = None
+        pass
+
+    def forward_propagate(self, points, p0, v, q0=None, w=None):
+        
+        # Check if q0 and w are proper
+        if q0 is None and w is not None or \
+           q0 is not None and w is None:
+           raise ValueError("Q0 or W is None in attitude propagation.")
+
+        if q0 is None:
+            # Position only propagation
+            x = np.array([p0[0]])
+            y = np.array([p0[1]])
+            z = np.array([p0[2]])
+
+            # Velocity propagation
+            v = np.repeat(v, points, axis=1)
+            vx = v[0,:]
+            vy = v[1,:]
+            vz = v[2,:]
+
+            # Propagate the position
+            for i in range(points-1):
+                x = np.append(x, x[-1]+vx[i]*self.dt)
+                y = np.append(y, y[-1]+vy[i]*self.dt)
+                z = np.append(z, z[-1]+vz[i]*self.dt)
+            
+            # Create trajectory matrix
+            x_sp = np.array([x])
+            x_sp = np.append(x_sp, [y], axis=0)
+            x_sp = np.append(x_sp, [z], axis=0)
+            x_sp = np.append(x_sp, [vx], axis=0)
+            x_sp = np.append(x_sp, [vy], axis=0)
+            x_sp = np.append(x_sp, [vz], axis=0)
+            x_sp = np.append(x_sp, np.zeros((3, points)), axis=0)
+            x_sp = np.append(x_sp, np.ones((1, points)), axis=0)
+            x_sp = np.append(x_sp, np.zeros((3, points)), axis=0)
+            self.full_trajectory = np.array(x_sp)
+
+            return self.full_trajectory.ravel(order='F')
