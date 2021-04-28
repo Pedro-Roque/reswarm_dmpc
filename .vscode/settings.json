@@ -19,6 +19,7 @@
     ],
     "ros.distro": "kinetic",
     "files.associations": {
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "array": "cpp"
     }
 }

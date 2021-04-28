@@ -1,6 +1,6 @@
 Header header
 float32[] W
-float32[] Wn
+float32[] WN
 ---
 bool success
 string message

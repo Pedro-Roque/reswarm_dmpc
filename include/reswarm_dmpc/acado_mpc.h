@@ -1,5 +1,5 @@
-#ifndef LEADER_CTL_H
-#define LEADER_CTL_H
+#ifndef ACADO_MPC_H
+#define ACADO_MPC_H
 
 #include <ros/ros.h>
 
@@ -8,9 +8,7 @@
 #include <sstream>
 #include <string>
 
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/TwistStamped.h>
-#include <geometry_msgs/Wrench.h>
+#include <std_msgs/Float32MultiArray.h>
 
 #include <reswarm_dmpc/GetControl.h>
 #include <reswarm_dmpc/SetWeights.h>
@@ -21,7 +19,7 @@
 ACADOvariables acadoVariables;
 ACADOworkspace acadoWorkspace;
 
-class LeaderMPC{
+class AcadoMPC{
     private:
         // Variables
         ros::NodeHandle nh_;
@@ -31,10 +29,12 @@ class LeaderMPC{
         // Functions
         bool GetControlCallback(reswarm_dmpc::GetControl::Request &req, reswarm_dmpc::GetControl::Response &res);
         bool SetWeightsCallback(reswarm_dmpc::SetWeights::Request &req, reswarm_dmpc::SetWeights::Response &res);
+        void ExtractGetControlData(reswarm_dmpc::GetControl::Request &req);
+        void ExtractAcadoPredictedTrajectories(reswarm_dmpc::GetControl::Response &res);
     public:
         // Constructor / Destructor
-        LeaderMPC(const ros::NodeHandle &nh);
-        virtual ~LeaderMPC();
+        AcadoMPC(const ros::NodeHandle &nh);
+        virtual ~AcadoMPC();
 
 };
 
