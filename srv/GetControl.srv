@@ -1,0 +1,11 @@
+Header header
+float32[] initial_state
+float32[] predicted_state
+float32[] predicted_input
+float32[] online_data
+---
+string status
+float32 solution_time
+float32 kkt_value
+float32[] predicted_state
+float32[] predicted_input

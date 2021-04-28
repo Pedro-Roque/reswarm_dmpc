@@ -1,0 +1,6 @@
+Header header
+float32[] W
+float32[] Wn
+---
+bool success
+string message

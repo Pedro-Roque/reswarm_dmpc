@@ -17,5 +17,8 @@
         "/home/roque/freeflyer/cmake/lib/python2.7/dist-packages",
         "/home/roque/reswarm_ws/src/reswarm_dmpc/lib/casadi-py27-v3.5.5"
     ],
-    "ros.distro": "kinetic"
+    "ros.distro": "kinetic",
+    "files.associations": {
+        "iostream": "cpp"
+    }
 }
