@@ -7,5 +7,6 @@ float32[] online_data
 int32 status
 float32 solution_time
 float32 kkt_value
+float32 objective_value
 float32[] predicted_state
 float32[] predicted_input

@@ -4,10 +4,10 @@
         <rosparam file="$(find reswarm_dmpc)/config/subleader_iface.yaml" command="load" ns="" />
         <node pkg="reswarm_dmpc" type="ros_node_subleader.py" name="subleader_iface" output="screen">
             <!-- Topics -->
-            <remap from="~pose_topic" to="pose"/>
-            <remap from="~twist_topic" to="twist"/>
-            <remap from="~local_leader_pose" to="/honey/pose"/>
-            <remap from="~follower_pose" to="/queen/pose"/>
+            <remap from="~pose_topic" to="loc/pose"/>
+            <remap from="~twist_topic" to="loc/twist"/>
+            <remap from="~local_leader_pose" to="/honey/loc/pose"/>
+            <remap from="~follower_pose" to="/queen/loc/pose"/>
             <remap from="~leader_information" to="/honey/information"/>
             <remap from="~control_topic" to="ctl/fam"/>
             <remap from="~broadcast_information" to="information"/>
@@ -17,8 +17,8 @@
             <remap from="~start_srv" to="start"/>
         </node>
         <node pkg="reswarm_dmpc" type="subleader_ctl_node" name="subleader_ctl_node">  
-            <remap from="~get_control_srv" to="get_control"/>
-            <remap from="~set_weights_srv" to="set_weights"/>
+            <remap from="get_control_srv" to="get_control"/>
+            <remap from="set_weights_srv" to="set_weights"/>
         </node>
     </group>
 </launch>

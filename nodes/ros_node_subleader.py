@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import numpy as np
-import scipy
+from numpy.core.numeric import Inf
 import rospy
 
 from reswarm_dmpc.reference_generation.sinusoidal import SinusoidalReference
@@ -12,7 +12,7 @@ import reswarm_dmpc.srv
 import reswarm_dmpc.msg
 
 DEBUG = False
-OVERRIDE_TS = True
+OVERRIDE_TS = False
 
 class DistributedMPC(object):
     """
@@ -41,8 +41,8 @@ class DistributedMPC(object):
 
         # Collect parameters
         bearings = rospy.get_param("bearings")
-        self.bearings = np.array([bearings['l']]).reshape((3,1))
-        self.bearings = np.concatenate((self.bearings, np.array([bearings['f1']]).reshape((3,1))))
+        self.bearings = np.array([bearings['l']]).reshape((3,))
+        self.bearings = np.concatenate((self.bearings, np.array([bearings['f1']]).reshape((3,))))
 
         # Print params:
         if DEBUG:
@@ -335,9 +335,9 @@ class DistributedMPC(object):
         
         # Valid data, so we proceed
         rel_pos_l, rel_pos_f1 = self.get_relative_pos()
-        x0 = np.concatenate((self.state, rel_pos_l, rel_pos_f1), axis=0).reshape((13+3+3*1,1))
+        self.x0 = np.concatenate((self.state, rel_pos_l, rel_pos_f1), axis=0).reshape((13+3+3*1,1))
         if self.x_traj is None:
-            self.x_traj = np.repeat(x0, self.N+1, axis=1)
+            self.x_traj = np.repeat(self.x0, self.N+1, axis=1)
 
         if self.u_traj is None:
             self.u_traj = np.repeat(np.zeros((1,6)), self.N, axis=0)
@@ -347,19 +347,19 @@ class DistributedMPC(object):
         if DEBUG:
             print("Bearings repeated shape: ", online_data.shape)
         
-        online_data = np.repeate(online_data, self.N+1, axis=1)
+        self.online_data = np.repeat(online_data.reshape((16,1)), self.N+1, axis=1)
 
         if DEBUG:
-            print("X0 data: ", x0.ravel(order="F").tolist())
+            print("X0 data: ", self.x0.ravel(order="F").tolist())
             print("X data: ", self.x_traj.ravel(order="F").tolist())
             print("U data: ", self.u_traj.ravel(order="F").tolist())
             print("OD data: ", online_data.ravel(order="F").tolist())
 
         srv = reswarm_dmpc.srv.GetControlRequest()
-        srv.initial_state = x0.ravel(order="F").tolist()
+        srv.initial_state = self.x0.ravel(order="F").tolist()
         srv.predicted_state = self.x_traj.ravel(order="F").tolist()
         srv.predicted_input = self.u_traj.ravel(order="F").tolist()
-        srv.online_data = online_data.ravel(order="F").tolist()  # TODO(@Pedro-Roque): remove zD param
+        srv.online_data = online_data.ravel(order="F").tolist()  
 
         if DEBUG:
             print("Data shapes on sending:")
@@ -416,11 +416,33 @@ class DistributedMPC(object):
         v.leader_velocity.linear.y = self.state[4]
         v.leader_velocity.linear.z = self.state[5]
         
-        v.leader_target.linear.x = self.information_vec[0,0]
-        v.leader_target.linear.y = self.information_vec[1,0]
-        v.leader_target.linear.z = self.information_vec[2,0]
+        v.leader_target.linear.x = self.information_vec[0]
+        v.leader_target.linear.y = self.information_vec[1]
+        v.leader_target.linear.z = self.information_vec[2]
 
         return v
+
+    def reset_control_request(self, srv):
+        """
+        Reset the solver internal variables.
+
+        :param srv: solver request
+        :type srv: reswarm_dmpc.srv.GetControlRequest
+        :return: resetted solver request
+        :rtype: reswarm_dmpc.srv.GetControlRequest
+        """
+        
+        if self.x_traj is None:
+            self.x_traj = np.repeat(self.x0, self.N+1, axis=1)
+
+        if self.u_traj is None:
+            self.u_traj = np.repeat(np.zeros((1,6)), self.N, axis=0)
+
+        srv.initial_state = self.x0.ravel(order="F").tolist()
+        srv.predicted_state = self.x_traj.ravel(order="F").tolist()
+        srv.predicted_input = self.u_traj.ravel(order="F").tolist()
+        srv.online_data = self.online_data.ravel(order="F").tolist()
+        return srv
 
     def run(self):
         """
@@ -439,22 +461,33 @@ class DistributedMPC(object):
             # Use self.pose, self.twist to generate a control input
             val, req = self.prepare_request()
             if val is False:
+                self.rate.sleep()
                 continue
 
             # For a valid request, proceed
             tin = rospy.get_time()
-            ans = self.get_control(req)  # TODO(@Pedro-Roque): we might want to put this in a loop for kkt < 1
+            temp_kkt = Inf
+            tries = 0
+            while temp_kkt > 100 and tries < 10: 
+                if np.isnan(temp_kkt):
+                    req = self.reset_control_request(req)
+                ans = self.get_control(req)
+                temp_kkt = ans.kkt_value
+                req.predicted_state = np.asarray(ans.predicted_state).reshape((self.Nx*(self.N+1),1))
+                req.predicted_input = np.asarray(ans.predicted_input).reshape((self.Nu*self.N, 1))
+                rospy.loginfo("[RTI Loop] Solver kkT: "+str(ans.kkt_value))
+                rospy.loginfo("[RTI Loop] Trial: "+str(tries))
+                tries += 1
             tout = rospy.get_time() - tin
             rospy.loginfo("Time for control: "+str(tout))
 
-            self.x_traj = np.asarray(ans.predicted_state).reshape((self.Nx*(self.N+1),1))
-            self.u_traj = np.asarray(ans.predicted_input).reshape((self.Nu*self.N, 1))
             if DEBUG:
                 print("X traj: ", self.x_traj.ravel(order="F").tolist())
                 print("U traj: ", self.u_traj.ravel(order="F").tolist())
             rospy.loginfo("Solver status: "+str(ans.status))
             rospy.loginfo("Solver kkT: "+str(ans.kkt_value))
             rospy.loginfo("Solver cpuTime: "+str(ans.solution_time))
+            rospy.loginfo("Solver Cost: "+str(ans.objective_value))
 
             # Create control input message
             u = self.create_control_message()

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import numpy as np
+from numpy.core.numeric import Inf
 import scipy
 import rospy
 
@@ -12,7 +13,7 @@ import reswarm_dmpc.srv
 import reswarm_dmpc.msg
 
 DEBUG = False
-OVERRIDE_TS = True
+OVERRIDE_TS = False
 
 class DistributedMPC(object):
     """
@@ -179,7 +180,7 @@ class DistributedMPC(object):
         self.twist_sub = rospy.Subscriber("~twist_topic",
                                           geometry_msgs.msg.TwistStamped,
                                           self.twist_sub_cb)
-        self.f1_sub = rospy.Subscriber("~neigh_pose",
+        self.f1_sub = rospy.Subscriber("~follower_pose",
                                        geometry_msgs.msg.PoseStamped,
                                        self.f1_pose_sub_cb)
 
@@ -290,9 +291,9 @@ class DistributedMPC(object):
         # Valid data, so we proceed
         self.target_vel = self.rg.get_vel_trajectory_at_t(t, self.N+1)
         rel_pos = self.get_relative_pos()
-        x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13+3,1))
+        self.x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13+3,1))
         if self.x_traj is None:
-            self.x_traj = np.repeat(x0, self.N+1, axis=1)
+            self.x_traj = np.repeat(self.x0, self.N+1, axis=1)
 
         if self.u_traj is None:
             self.u_traj = np.repeat(np.zeros((1,6)), self.N, axis=0)
@@ -302,7 +303,7 @@ class DistributedMPC(object):
             print("Bearings repeated shape: ", online_data.shape)
             print("Velocity shape: ", self.target_vel.shape)
         
-        online_data = np.concatenate((online_data,self.target_vel), axis=0)
+        self.online_data = np.concatenate((online_data,self.target_vel), axis=0)
 
         if DEBUG:
             print("Target Velocity: ", self.target_vel.shape)
@@ -310,16 +311,16 @@ class DistributedMPC(object):
             print("State dims: ", self.state.shape)
             print("rel_pos dims: ", rel_pos.shape)
             print("Bearings dims: ", self.bearings.shape)
-            print("X0 data: ", x0.ravel(order="F").tolist(), " - X0 shape: ", x0.shape)
+            print("X0 data: ", self.x0.ravel(order="F").tolist())
             print("X data: ", self.x_traj.ravel(order="F").tolist()) # .ravel(order="C")
             print("U data: ", self.u_traj.ravel(order="F").tolist()) # .ravel(order="C")
-            print("OD data: ", online_data.ravel(order="F").tolist())
+            print("OD data: ", self.online_data.ravel(order="F").tolist())
 
         srv = reswarm_dmpc.srv.GetControlRequest()
-        srv.initial_state = x0.ravel(order="F").tolist()
+        srv.initial_state = self.x0.ravel(order="F").tolist()
         srv.predicted_state = self.x_traj.ravel(order="F").tolist()
         srv.predicted_input = self.u_traj.ravel(order="F").tolist()
-        srv.online_data = online_data.ravel(order="F").tolist()  # TODO(@Pedro-Roque): remove zD param
+        srv.online_data = self.online_data.ravel(order="F").tolist()
 
         if DEBUG:
             print("Data shapes on sending:")
@@ -382,6 +383,29 @@ class DistributedMPC(object):
 
         return v
 
+    def reset_control_request(self, srv):
+        """
+        Reset the solver internal variables.
+
+        :param srv: solver request
+        :type srv: reswarm_dmpc.srv.GetControlRequest
+        :return: resetted solver request
+        :rtype: reswarm_dmpc.srv.GetControlRequest
+        """
+
+        if self.x_traj is None:
+            self.x_traj = np.repeat(self.x0, self.N+1, axis=1)
+
+        if self.u_traj is None:
+            self.u_traj = np.repeat(np.zeros((1,6)), self.N, axis=0)
+
+        srv.initial_state = self.x0.ravel(order="F").tolist()
+        srv.predicted_state = self.x_traj.ravel(order="F").tolist()
+        srv.predicted_input = self.u_traj.ravel(order="F").tolist()
+        srv.online_data = self.online_data.ravel(order="F").tolist()
+
+        return srv
+
     def run(self):
         """
         Main operation loop.
@@ -400,22 +424,35 @@ class DistributedMPC(object):
             t = rospy.get_time() - self.t0
             val, req = self.prepare_request(t)
             if val is False:
+                self.rate.sleep()
                 continue
 
-            # For a valid request, proceed
+            # Start the RTI Loop
             tin = rospy.get_time()
-            ans = self.get_control(req)  # TODO(@Pedro-Roque): we might want to put this in a loop for kkt < 1
+            temp_kkt = Inf
+            tries = 0
+            while temp_kkt > 100 and tries < 10: 
+                if np.isnan(temp_kkt):
+                    req = self.reset_control_request(req)
+                ans = self.get_control(req)
+                temp_kkt = ans.kkt_value
+                req.predicted_state = np.asarray(ans.predicted_state).reshape((self.Nx*(self.N+1),1))
+                req.predicted_input = np.asarray(ans.predicted_input).reshape((self.Nu*self.N, 1))
+                rospy.loginfo("[RTI Loop] Solver kkT: "+str(ans.kkt_value))
+                rospy.loginfo("[RTI Loop] Trial: "+str(tries))
+                tries += 1
             tout = rospy.get_time() - tin
             rospy.loginfo("Time for control: "+str(tout))
 
+            # Update the trajectories for the next iteration
             self.x_traj = np.asarray(ans.predicted_state).reshape((self.Nx*(self.N+1),1))
             self.u_traj = np.asarray(ans.predicted_input).reshape((self.Nu*self.N, 1))
             if DEBUG:
                 print("X traj: ", self.x_traj.ravel(order="F").tolist())
                 print("U traj: ", self.u_traj.ravel(order="F").tolist())
             rospy.loginfo("Solver status: "+str(ans.status))
-            rospy.loginfo("Solver kkT: "+str(ans.kkt_value))
             rospy.loginfo("Solver cpuTime: "+str(ans.solution_time))
+            rospy.loginfo("Solver Cost: "+str(ans.objective_value))
 
             # Create control input message
             u = self.create_control_message()

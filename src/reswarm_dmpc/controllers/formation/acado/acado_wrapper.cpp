@@ -9,10 +9,10 @@ nh_(nh){
   acado_initializeSolver();
 
   // Set control service
-  get_control_ = nh_.advertiseService("~get_control_srv", &AcadoMPC::GetControlCallback, this);
+  get_control_ = nh_.advertiseService("get_control_srv", &AcadoMPC::GetControlCallback, this);
 
   // Set weigths service
-  set_weights_ = nh_.advertiseService("~set_weights_srv", &AcadoMPC::SetWeightsCallback, this);
+  set_weights_ = nh_.advertiseService("set_weights_srv", &AcadoMPC::SetWeightsCallback, this);
 
   // Initialize y and yN
   for(int i = 0; i < ACADO_NY*(ACADO_N); i++)
@@ -56,6 +56,7 @@ bool AcadoMPC::GetControlCallback(reswarm_dmpc::GetControl::Request &req,
   res.status = status;
 	res.solution_time = (float) acado_toc( &t );
   res.kkt_value = (float) acado_getKKT();
+  res.objective_value = (float) acado_getObjective();
 
   // Fill predicted state and control trajectories
   ExtractAcadoPredictedTrajectories(res);
