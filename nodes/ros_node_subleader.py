@@ -27,48 +27,54 @@ class DistributedMPC(object):
         self.start = False
         self.state = np.zeros((13,1))
         self.state[9] = 1
+        self.qd = np.array([0,0,0,1]).reshape((4,))
         self.rg = None
         self.t0 = 0.0
+        self.l_position = None
         self.f1_position = None
+        self.information_vec = None
         self.twist = None
         self.pose = None
 
         # Collect parameters
-        rg_start = rospy.get_param("traj_start")
-        self.rg_start = np.array([rg_start]).reshape((3,1))
         bearings = rospy.get_param("bearings")
-        self.bearings = np.array([bearings['f1']]).reshape((3,1))
+        self.bearings = np.array([bearings['l']]).reshape((3,1))
+        self.bearings = np.concatenate((self.bearings, np.array([bearings['f1']]).reshape((3,1))))
 
         # Print params:
         if DEBUG:
-            print("RG Start: ", self.rg_start)
             print("Bearings: ", self.bearings)
 
         # Data timestamps and validity threshold
         self.ts_threshold = 1.0
         self.pose_ts = 0.0
         self.twist_ts = 0.0
+        self.l_position_ts = 0.0
         self.f1_position_ts = 0.0
+        self.information_ts = 0.0
 
         # MPC data
         self.N = 10
-        self.Nx = 3+3+4+3+3*1
+        self.Nx = 3+3+4+3+3+3*1
         self.Nu = 6
         self.x_traj = None
         self.u_traj = None
-        self.weights_size = 3+3+3*1+6
-        self.weights_size_N = 3+3+3*1
-        rpos_weights = np.ones((3*1,))*0.05
+        self.weights_size = 3+3*1+3+3+6
+        self.weights_size_N = 3+3*1+3+3
+        rpos_l_weights = np.ones((3*1,))
+        rpos_f_weights = np.ones((3*1,))*0.05
         verr_weights = np.ones((3,))*10
         att_weights = np.ones((3,))*10
         control_weights = np.array([5, 5, 5, 1, 1, 1])*10
 
-        self.ln_weights = np.concatenate((rpos_weights,
+        self.ln_weights = np.concatenate((rpos_l_weights,
+                                          rpos_f_weights,
                                           verr_weights,
                                           att_weights,
                                           control_weights), axis = 0)
 
-        self.V_weights = np.concatenate((rpos_weights,
+        self.V_weights = np.concatenate((rpos_l_weights,
+                                         rpos_f_weights,
                                          verr_weights,
                                          att_weights), axis = 0)*200
 
@@ -112,6 +118,13 @@ class DistributedMPC(object):
         self.state[10:13] = self.twist[3:6]
         return
 
+    def l_pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
+        self.l_position_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
+        self.l_position = np.array([[msg.pose.position.x, 
+                                      msg.pose.position.y, 
+                                      msg.pose.position.z]]).T
+        return
+
     def f1_pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
         self.f1_position_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
         self.f1_position = np.array([[msg.pose.position.x, 
@@ -119,16 +132,26 @@ class DistributedMPC(object):
                                       msg.pose.position.z]]).T
         return
 
+    def leader_information_cb(self, msg=reswarm_dmpc.msg.InformationStamped):
+        self.information_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
+        self.information_vec = np.zeros((6,))
+
+        # Information vector contains: [vD; vL]
+        self.information_vec[0] = msg.leader_target.linear.x
+        self.information_vec[1] = msg.leader_target.linear.y
+        self.information_vec[2] = msg.leader_target.linear.z
+
+        self.information_vec[3] = msg.leader_velocity.linear.x
+        self.information_vec[4] = msg.leader_velocity.linear.y
+        self.information_vec[5] = msg.leader_velocity.linear.z
+        pass
+
     def start_srv_callback(self, req=std_srvs.srv.SetBoolRequest()):
         self.start = req.data
 
         ans = std_srvs.srv.SetBoolResponse()
         ans.success = True
         ans.message = "Node started!"
-
-        # Check for valid pose and twist
-        self.rg = SinusoidalReference(self.dt, self.rg_start, A=0.1, time_span=45)
-        self.t0 = rospy.get_time()
 
         return ans
 
@@ -145,16 +168,22 @@ class DistributedMPC(object):
         self.twist_sub = rospy.Subscriber("~twist_topic",
                                           geometry_msgs.msg.TwistStamped,
                                           self.twist_sub_cb)
-        self.f1_sub = rospy.Subscriber("~neigh_pose",
+        self.l_sub = rospy.Subscriber("~local_leader_pose",
+                                       geometry_msgs.msg.PoseStamped,
+                                       self.l_pose_sub_cb)
+        self.f1_sub = rospy.Subscriber("~follower_pose",
                                        geometry_msgs.msg.PoseStamped,
                                        self.f1_pose_sub_cb)
+        self.broadcast_sub = rospy.Subscriber("~leader_information", 
+                                             reswarm_dmpc.msg.InformationStamped,
+                                             self.leader_information_cb)
 
         # Publishers
         self.control_pub = rospy.Publisher("~control_topic",
                                            geometry_msgs.msg.WrenchStamped,
                                            queue_size=1)
         
-        self.broadcast_pub = rospy.Publisher("~broadcast_information", 
+        self.broadcast_pub = rospy.Publisher("~leader_target_vel", 
                                              reswarm_dmpc.msg.InformationStamped,
                                              queue_size=1)
 
@@ -163,10 +192,10 @@ class DistributedMPC(object):
     def set_services(self):
 
         # Get control input service
-        self.get_control = rospy.ServiceProxy("/leader/get_control", 
+        self.get_control = rospy.ServiceProxy("~subleader/get_control", 
                                               reswarm_dmpc.srv.GetControl)
 
-        self.set_weights = rospy.ServiceProxy("/leader/set_weights", 
+        self.set_weights = rospy.ServiceProxy("~set_weights", 
                                               reswarm_dmpc.srv.SetWeights)
 
         self.start_service = rospy.Service("~start", std_srvs.srv.SetBool, self.start_srv_callback)
@@ -197,30 +226,37 @@ class DistributedMPC(object):
 
         pos_val = False
         vel_val = False
-        rel_val = False
+        lead_val = False
+        f1_val = False
+        info_val = False
 
         # Check state validity
         if rospy.get_time() - self.pose_ts < self.ts_threshold or OVERRIDE_TS:
             pos_val = True
         if rospy.get_time() - self.twist_ts < self.ts_threshold or OVERRIDE_TS:
             vel_val = True
+        if rospy.get_time() - self.l_position_ts < self.ts_threshold or OVERRIDE_TS:
+            lead_val = True
         if rospy.get_time() - self.f1_position_ts < self.ts_threshold or OVERRIDE_TS:
-            rel_val = True
+            f1_val = True
+        if rospy.get_time() - self.information_ts < self.ts_threshold or OVERRIDE_TS:
+            info_val = True
 
-        # Check weights validity
-        
-        if pos_val is False or vel_val is False or rel_val is False:
+        # Check validity
+        if pos_val is False or vel_val is False or lead_val is False or f1_val is False or info_val is False:
             rospy.logwarn("Skipping control. Validity flags:\nPos: "\
-                           +str(pos_val)+"; Vel: "+str(vel_val)+"; Rel: "+str(rel_val))
+                           +str(pos_val)+"; Vel: "+str(vel_val)+\
+                           "; Leader: "+str(lead_val)+"; F1: "+str(f1_val)+"; Info: "+str(info_val))
         
-        return pos_val and vel_val and rel_val
+        return pos_val and vel_val and lead_val and f1_val and info_val
 
     def get_relative_pos(self):
         rmat = r_mat_np(self.state[6:10]).T
-        rel_pos = np.dot(rmat, self.state[0:3] - self.f1_position)
-        return rel_pos
+        rel_pos_l = np.dot(rmat, self.state[0:3] - self.l_position)
+        rel_pos_f1 = np.dot(rmat, self.state[0:3] - self.f1_position)
+        return rel_pos_l, rel_pos_f1
 
-    def prepare_request(self, t):
+    def prepare_request(self):
 
         # Get trajectory
         val = False
@@ -230,31 +266,25 @@ class DistributedMPC(object):
             return val, 0
         
         # Valid data, so we proceed
-        self.target_vel = self.rg.get_vel_trajectory_at_t(t, self.N+1)
-        rel_pos = self.get_relative_pos()
-        x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13+3,1))
+        rel_pos_l, rel_pos_f1 = self.get_relative_pos()
+        x0 = np.concatenate((self.state, rel_pos_l, rel_pos_f1), axis=0).reshape((13+3+3*1,1))
         if self.x_traj is None:
             self.x_traj = np.repeat(x0, self.N+1, axis=1)
 
         if self.u_traj is None:
             self.u_traj = np.repeat(np.zeros((1,6)), self.N, axis=0)
 
-        online_data = np.repeat(self.bearings, self.N+1, axis=1)
+        # Fill online data array
+        online_data = np.concatenate((self.bearings, self.qd, self.information_vec), axis=0)
         if DEBUG:
             print("Bearings repeated shape: ", online_data.shape)
-            print("Velocity shape: ", self.target_vel.shape)
         
-        online_data = np.concatenate((online_data,self.target_vel), axis=0)
+        online_data = np.repeate(online_data, self.N+1, axis=1)
 
         if DEBUG:
-            print("Target Velocity: ", self.target_vel.shape)
-            print("Neighour position: ", rel_pos.shape)
-            print("State dims: ", self.state.shape)
-            print("rel_pos dims: ", rel_pos.shape)
-            print("Bearings dims: ", self.bearings.shape)
-            print("X0 data: ", x0.ravel(order="F").tolist(), " - X0 shape: ", x0.shape)
-            print("X data: ", self.x_traj.ravel(order="F").tolist()) # .ravel(order="C")
-            print("U data: ", self.u_traj.ravel(order="F").tolist()) # .ravel(order="C")
+            print("X0 data: ", x0.ravel(order="F").tolist())
+            print("X data: ", self.x_traj.ravel(order="F").tolist())
+            print("U data: ", self.u_traj.ravel(order="F").tolist())
             print("OD data: ", online_data.ravel(order="F").tolist())
 
         srv = reswarm_dmpc.srv.GetControlRequest()
@@ -312,9 +342,9 @@ class DistributedMPC(object):
         v.leader_velocity.linear.y = self.state[4]
         v.leader_velocity.linear.z = self.state[5]
         
-        v.leader_target.linear.x = self.target_vel[0,0]
-        v.leader_target.linear.y = self.target_vel[1,0]
-        v.leader_target.linear.z = self.target_vel[2,0]
+        v.leader_target.linear.x = self.information_vec[0,0]
+        v.leader_target.linear.y = self.information_vec[1,0]
+        v.leader_target.linear.z = self.information_vec[2,0]
 
         return v
 
@@ -333,8 +363,7 @@ class DistributedMPC(object):
             
             rospy.loginfo("Looping!")
             # Use self.pose, self.twist to generate a control input
-            t = rospy.get_time() - self.t0
-            val, req = self.prepare_request(t)
+            val, req = self.prepare_request()
             if val is False:
                 continue
 
