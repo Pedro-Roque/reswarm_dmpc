@@ -77,6 +77,48 @@ class SinusoidalReference(object):
 
         return xr[3:6,:]
 
+    def get_vel_trajectory_at_t(self, t, points):
+        """
+        Create trajectory starting at time t with the specified
+        number of points
+
+        :param t: starting trajectory time
+        :type t: float
+        :param points: number of traejctory points
+        :type points: int
+        :return: velocity trajectory for the specified interval
+        :rtype: np.ndarray
+        """
+
+        t = np.linspace(t, (points-1)*self.dt+t, points)
+        vx = self.A*np.cos(2*np.pi*self.f*t)
+        vy = self.A*np.sin(2*np.pi*self.f*t)
+        vz = 0.005*np.ones(points)
+
+        # Once we have a velocity profile, we can create the
+        # position references
+        x = np.array([self.x0])
+        y = np.array([self.y0])
+        z = np.array([self.z0])
+
+        for i in range(points-1):
+            x = np.append(x, x[-1]+vx[i]*self.dt)
+            y = np.append(y, y[-1]+vy[i]*self.dt)
+            z = np.append(z, z[-1]+vz[i]*self.dt)
+        # Create trajectory matrix
+        x_sp = np.array([x])
+        x_sp = np.append(x_sp, [y], axis=0)
+        x_sp = np.append(x_sp, [z], axis=0)
+        x_sp = np.append(x_sp, [vx], axis=0)
+        x_sp = np.append(x_sp, [vy], axis=0)
+        x_sp = np.append(x_sp, [vz], axis=0)
+        x_sp = np.append(x_sp, np.zeros((3, points)), axis=0)
+        x_sp = np.append(x_sp, np.ones((1, points)), axis=0)
+        x_sp = np.append(x_sp, np.zeros((3, points)), axis=0)
+        self.full_trajectory = np.array(x_sp)
+
+        return self.full_trajectory[3:6,:]
+
     def create_trajectory(self):
         """
         Helper method to create the trajectory.

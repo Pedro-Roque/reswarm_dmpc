@@ -127,7 +127,6 @@ class DistributedMPC(object):
 
         # Check for valid pose and twist
         self.rg = SinusoidalReference(self.dt, self.rg_start, A=0.1, time_span=45)
-        self.rg.create_trajectory()
         self.t0 = rospy.get_time()
 
         return ans
@@ -153,6 +152,10 @@ class DistributedMPC(object):
         self.control_pub = rospy.Publisher("~control_topic",
                                            geometry_msgs.msg.WrenchStamped,
                                            queue_size=1)
+        
+        self.broadcast_pub = rospy.Publisher("~leader_target_vel", 
+                                             geometry_msgs.msg.TwistStamped,
+                                             queue_size=1)
 
         pass
 
@@ -226,7 +229,7 @@ class DistributedMPC(object):
             return val, 0
         
         # Valid data, so we proceed
-        vel = self.rg.get_vel_trajectory(t, self.N+1)
+        self.target_vel = self.rg.get_vel_trajectory_at_t(t, self.N+1)
         rel_pos = self.get_relative_pos()
         x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13+3,1))
         if self.x_traj is None:
@@ -238,12 +241,12 @@ class DistributedMPC(object):
         online_data = np.repeat(self.bearings, self.N+1, axis=1)
         if DEBUG:
             print("Bearings repeated shape: ", online_data.shape)
-            print("Velocity shape: ", vel.shape)
+            print("Velocity shape: ", self.target_vel.shape)
         
-        online_data = np.concatenate((online_data,vel), axis=0)
+        online_data = np.concatenate((online_data,self.target_vel), axis=0)
 
         if DEBUG:
-            print("Target Velocity: ", vel.shape)
+            print("Target Velocity: ", self.target_vel.shape)
             print("Neighour position: ", rel_pos.shape)
             print("State dims: ", self.state.shape)
             print("rel_pos dims: ", rel_pos.shape)
@@ -268,7 +271,47 @@ class DistributedMPC(object):
 
         val = True
         return val, srv
+
+    def create_control_message(self):
+        """
+        Helper function to create the control message to be published
+
+        :return: control input to vehicle
+        :rtype: geometry_msgs.msg.WrenchStamped()
+        """
         
+        # Create message
+        u = geometry_msgs.msg.WrenchStamped()
+
+        # Fill header
+        u.header.frame_id = 'body'
+        u.header.stamp = rospy.Time.now()   
+
+        # Fill force / torque messages
+        u.wrench.force.x = self.u_traj[0]
+        u.wrench.force.y = self.u_traj[1]
+        u.wrench.force.z = self.u_traj[2]
+        u.wrench.torque.x = self.u_traj[3]
+        u.wrench.torque.y = self.u_traj[4]
+        u.wrench.torque.z = self.u_traj[5]
+
+        return u
+
+    def create_broadcast_message(self):
+
+        # Create message
+        v = geometry_msgs.msg.TwistStamped()
+
+        # Fill header
+        v.header.frame_id = 'inertial'
+        v.header.stamp = rospy.Time.now()  
+
+        # Fill linear velocity
+        v.twist.linear.x = self.target_vel[0,0]
+        v.twist.linear.y = self.target_vel[1,0]
+        v.twist.linear.z = self.target_vel[2,0]
+
+        return v
 
     def run(self):
 
@@ -306,16 +349,13 @@ class DistributedMPC(object):
             rospy.loginfo("Solver cpuTime: "+str(ans.solution_time))
 
             # Create control input message
-            u = geometry_msgs.msg.WrenchStamped()
-            u.wrench.force.x = self.u_traj[0]
-            u.wrench.force.y = self.u_traj[1]
-            u.wrench.force.z = self.u_traj[2]
-            u.wrench.torque.x = self.u_traj[3]
-            u.wrench.torque.y = self.u_traj[4]
-            u.wrench.torque.z = self.u_traj[5]
+            u = self.create_control_message()
+            v = self.create_broadcast_message()
 
             # Publish control
             self.control_pub.publish(u)
+            self.broadcast_pub.publish(v)
+
 
             self.rate.sleep()
     pass
