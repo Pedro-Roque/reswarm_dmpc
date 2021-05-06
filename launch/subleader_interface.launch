@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+    <group ns="subleader">
+        <rosparam file="$(find reswarm_dmpc)/config/leader_iface.yaml" command="load" ns="" />
+        <node pkg="reswarm_dmpc" type="ros_node_leader.py" name="leader_iface" output="screen"/>
+        <node pkg="reswarm_dmpc" type="leader_ctl_node" name="leader_ctl_node"/>    
+    </group>
+</launch>

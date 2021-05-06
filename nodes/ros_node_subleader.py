@@ -21,6 +21,9 @@ class DistributedMPC(object):
     """
 
     def __init__(self):
+        """
+        Initialize Distributed MPC Class
+        """
 
         self.dt = 1
         self.rate = rospy.Rate(1)
@@ -90,6 +93,12 @@ class DistributedMPC(object):
     # BEGIN: Callbacks Section
     # ---------------------------------
     def pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
+        """
+        Pose callback to update the agent's position and attitude.
+
+        :param msg: estimated pose, defaults to geometry_msgs.msg.PoseStamped()
+        :type msg: geometry_msgs.msg.PoseStamped
+        """
 
         self.pose_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
         self.pose = np.array([[msg.pose.position.x,
@@ -105,6 +114,12 @@ class DistributedMPC(object):
         return
 
     def twist_sub_cb(self, msg=geometry_msgs.msg.TwistStamped()):
+        """
+        Twist callback to update the agent's lineear and angular velocities.
+
+        :param msg: estimated velocities
+        :type msg: geometry_msgs.msg.TwistStamped
+        """
 
         self.twist_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
         self.twist = np.array([[msg.twist.linear.x,
@@ -119,6 +134,12 @@ class DistributedMPC(object):
         return
 
     def l_pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
+        """
+        Local leader position callback (for further simulation of a rel. pos. sensor)
+
+        :param msg: local leader position
+        :type msg: geometry_msgs.msg.PoseStamped
+        """
         self.l_position_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
         self.l_position = np.array([[msg.pose.position.x, 
                                       msg.pose.position.y, 
@@ -126,6 +147,13 @@ class DistributedMPC(object):
         return
 
     def f1_pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
+        """
+        Follower 1 position callback (for further simulation of a rel. pos. sensor)
+
+        :param msg: follower 1 position
+        :type msg: geometry_msgs.msg.PoseStamped
+        """
+
         self.f1_position_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
         self.f1_position = np.array([[msg.pose.position.x, 
                                       msg.pose.position.y, 
@@ -133,6 +161,12 @@ class DistributedMPC(object):
         return
 
     def leader_information_cb(self, msg=reswarm_dmpc.msg.InformationStamped):
+        """
+        Information vector received from the leader.
+
+        :param msg: information vector with current and target velocities.
+        :type msg: reswarm_dmpc.msg.InformationStamped
+        """
         self.information_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
         self.information_vec = np.zeros((6,))
 
@@ -147,6 +181,14 @@ class DistributedMPC(object):
         pass
 
     def start_srv_callback(self, req=std_srvs.srv.SetBoolRequest()):
+        """
+        Service to start the operation of the autonomous control.
+
+        :param req: request state
+        :type req: std_srvs.srv.SetBoolRequest
+        :return: success at starting
+        :rtype: std_srvs.srv.SetBoolResponse
+        """
         self.start = req.data
 
         ans = std_srvs.srv.SetBoolResponse()
@@ -160,6 +202,9 @@ class DistributedMPC(object):
     # ---------------------------------
 
     def set_subscribers_publishers(self):
+        """
+        Helper function to create all publishers and subscribers.
+        """
 
         # Subscribers
         self.pose_sub = rospy.Subscriber("~pose_topic",
@@ -190,6 +235,9 @@ class DistributedMPC(object):
         pass
 
     def set_services(self):
+        """
+        Helper function to create all services.
+        """
 
         # Get control input service
         self.get_control = rospy.ServiceProxy("~subleader/get_control", 
@@ -206,6 +254,9 @@ class DistributedMPC(object):
         pass
 
     def set_weights_iface(self):
+        """
+        Function to set the controller weights.
+        """
 
         srv = reswarm_dmpc.srv.SetWeightsRequest()
         srv.W = np.diag(self.ln_weights).ravel(order="F").tolist()
@@ -223,7 +274,12 @@ class DistributedMPC(object):
                       "\nSet weights message: "+str(ans.message))
 
     def check_data_validity(self):
+        """
+        Helper function to check the data validity.
 
+        :return: True if data is valid, False otherwise
+        :rtype: boolean
+        """
         pos_val = False
         vel_val = False
         lead_val = False
@@ -251,12 +307,24 @@ class DistributedMPC(object):
         return pos_val and vel_val and lead_val and f1_val and info_val
 
     def get_relative_pos(self):
+        """
+        Helper function to return the relative position of the neighbours.
+
+        :return: relative position to leader and follower 1
+        :rtype: np.ndarray, np.ndarray
+        """
         rmat = r_mat_np(self.state[6:10]).T
         rel_pos_l = np.dot(rmat, self.state[0:3] - self.l_position)
         rel_pos_f1 = np.dot(rmat, self.state[0:3] - self.f1_position)
         return rel_pos_l, rel_pos_f1
 
     def prepare_request(self):
+        """
+        Helper function to prepare the control request.
+
+        :return: control service request
+        :rtype: reswarm_dmpc.srv.GetControlRequest
+        """
 
         # Get trajectory
         val = False
@@ -329,6 +397,12 @@ class DistributedMPC(object):
         return u
 
     def create_broadcast_message(self):
+        """
+        Helper function to create the broadcasted information vector.
+
+        :return: the message to be broadcasted
+        :rtype: reswarm_dmpc.msg.InformationStamped
+        """
 
         # Create message
         v = reswarm_dmpc.msg.InformationStamped()
@@ -349,9 +423,9 @@ class DistributedMPC(object):
         return v
 
     def run(self):
-
-        # Set system weights
-
+        """
+        Main operation loop.
+        """
 
         while not rospy.is_shutdown():
 
