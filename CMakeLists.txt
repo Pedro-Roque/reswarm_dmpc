@@ -35,9 +35,6 @@ catkin_package(
   CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
 )
 
-
-
-
 # TODO(@Pedro-Roque): Set ARM optimizations for MLP
 # if("${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "armv7l")
 #   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mfpu=neon -mfloat-abi=hard -funsafe-math-optimizations")

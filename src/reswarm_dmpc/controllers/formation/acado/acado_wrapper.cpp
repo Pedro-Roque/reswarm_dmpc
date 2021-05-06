@@ -14,6 +14,17 @@ nh_(nh){
   // Set weigths service
   set_weights_ = nh_.advertiseService("set_weights", &AcadoMPC::SetWeightsCallback, this);
 
+  // Initialize y and yN
+  for(int i = 0; i < ACADO_NY*(ACADO_N); i++)
+	{
+		acadoVariables.y[i] = 0.0;
+	}
+
+  for(int i = 0; i < ACADO_NYN; i++)
+	{
+		acadoVariables.yN[i] = 0.0;
+	}
+
 }
 
 AcadoMPC::~AcadoMPC() {
@@ -30,9 +41,16 @@ bool AcadoMPC::GetControlCallback(reswarm_dmpc::GetControl::Request &req,
 	acado_preparationStep();
 	acado_tic( &t );
   int status;
+  int iter;
 
   // Perform the feedback step.
-  status = acado_feedbackStep( );
+  for(iter = 0; iter < NUM_STEPS; ++iter)
+	{
+    status = acado_feedbackStep( );
+    //acado_shiftStates(2, 0, 0);
+    //acado_shiftControls( 0 );
+    acado_preparationStep();
+	}
 
 	// Extract parameters
   res.status = status;
@@ -61,7 +79,7 @@ bool AcadoMPC::SetWeightsCallback(reswarm_dmpc::SetWeights::Request &req,
 	{
 		acadoVariables.WN[i] = *it;
 	}
-
+  return true;
 }
 
 void AcadoMPC::ExtractGetControlData(reswarm_dmpc::GetControl::Request &req){
@@ -101,16 +119,16 @@ void AcadoMPC::ExtractGetControlData(reswarm_dmpc::GetControl::Request &req){
 void AcadoMPC::ExtractAcadoPredictedTrajectories(reswarm_dmpc::GetControl::Response &res){
 
   // Extract predicted state output
-  std_msgs::Float32MultiArray state_array;
-  state_array.data.clear();
-  for(int i = 0; i < ACADO_NX*ACADO_N; i++){
-    state_array.data.push_back(acadoVariables.x[i]);
+  res.predicted_state.clear();
+  for(int i = 0; i < ACADO_NX*(ACADO_N+1); i++){
+    res.predicted_state.push_back(acadoVariables.x[i]);
   }
 
   // Extract predicted control input
-  std_msgs::Float32MultiArray control_array;
-  control_array.data.clear();
+  // std_msgs::Float32MultiArray control_array;
+  res.predicted_input.clear();
   for(int i = 0; i < ACADO_NU*ACADO_N; i++){
-    control_array.data.push_back(acadoVariables.u[i]);
+    res.predicted_input.push_back(acadoVariables.u[i]);
   }
+
 }

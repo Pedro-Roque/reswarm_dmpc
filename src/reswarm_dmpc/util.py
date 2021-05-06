@@ -92,3 +92,35 @@ def inv_skew(sk):
     v[2] = sk[1, 0]
 
     return v
+
+def r_mat_np(q):
+    """
+    Generate rotation matrix from unit quaternion
+
+    :param q: unit quaternion
+    :type q: ca.MX
+    :return: rotation matrix, SO(3)
+    :rtype: ca.MX
+    """
+
+    Rmat = np.zeros((3, 3))
+
+    # Extract states
+    qx = q[0]
+    qy = q[1]
+    qz = q[2]
+    qw = q[3]
+
+    Rmat[0, 0] = 1 - 2*qy**2 - 2*qz**2
+    Rmat[0, 1] = 2*qx*qy - 2*qz*qw
+    Rmat[0, 2] = 2*qx*qz + 2*qy*qw
+
+    Rmat[1, 0] = 2*qx*qy + 2*qz*qw
+    Rmat[1, 1] = 1 - 2*qx**2 - 2*qz**2
+    Rmat[1, 2] = 2*qy*qz - 2*qx*qw
+
+    Rmat[2, 0] = 2*qx*qz - 2*qy*qw
+    Rmat[2, 1] = 2*qy*qz + 2*qx*qw
+    Rmat[2, 2] = 1 - 2*qx**2 - 2*qy**2
+
+    return Rmat

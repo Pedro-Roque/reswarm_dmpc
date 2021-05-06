@@ -16,6 +16,8 @@
 #include "acado_common.h"
 #include "acado_auxiliary_functions.h"
 
+#define NUM_STEPS 1
+
 ACADOvariables acadoVariables;
 ACADOworkspace acadoWorkspace;
 

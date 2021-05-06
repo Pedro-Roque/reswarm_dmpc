@@ -57,6 +57,26 @@ class SinusoidalReference(object):
                                     (int(t/self.dt) + points)]
         return x_sp.ravel(order='F')
 
+    def get_vel_trajectory(self, t, points):
+        """
+        Helper function to extract velocity from a given trajectory
+
+        :param t: [description]
+        :type t: [type]
+        :param points: [description]
+        :type points: [type]
+        :return: [description]
+        :rtype: [type]
+        """
+
+        assert self.full_trajectory is not None, "Create the trajectory first."
+        assert t >= 0, "Time instance has to >= 0."
+        xr = self.full_trajectory[:, int(t/self.dt):
+                                  (int(t/self.dt) + points)]
+        # vel = xr[3:6,:].reshape(3*points,1)
+
+        return xr[3:6,:]
+
     def create_trajectory(self):
         """
         Helper method to create the trajectory.

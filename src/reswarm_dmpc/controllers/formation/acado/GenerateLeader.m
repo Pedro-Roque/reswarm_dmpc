@@ -4,12 +4,12 @@ close all
 acadoSet('results_to_file', false);
 followers = 1;
 %% NMPC parameters solver
-N = 20;
-Ts = 0.05;
+N = 10;
+Ts = 0.5;
 
-m = 1.43; 
-moment_arm = 0.2;
-V_MAX = 0.1;
+m = 6.0; 
+moment_arm = 0.1;
+V_MAX = 0.5;
 
 % Exponential decay
 alpha = 4;
@@ -20,9 +20,9 @@ J = diag([2.3,2.4,21]*10^-2); invJ = inv(J);
 
 %% Problem setup
 DifferentialState p1(3) v1(3) q1(4) w1(3) relPos(3*followers)
-OnlineData relPosD(3*followers) vD(3) zD(1)
+OnlineData relPosD(3*followers) vD(3)
 
-Control u1(6) % vertical thrust and 3-dof torque                                                
+Control u1(6)                                            
 
 %% Functions         
 Rq = @(q)   [1 - 2*q(2)^2 - 2*q(3)^2,	2*q(1)*q(2) - 2*q(3)*q(4),	2*q(1)*q(3) + 2*q(2)*q(4); ...
@@ -80,12 +80,12 @@ ocp.minimizeLSQ(  W, J1 );
 ocp.minimizeLSQEndTerm(  WN, J1(1:end-6) );
 
 ocp.setModel(dynamicsVec);
-ocp.subjectTo( -4*m <= u11 <= 4*m);
-ocp.subjectTo( -4*m <= u12 <= 4*m); 
-ocp.subjectTo( -4*m <= u13 <= 4*m); 
-ocp.subjectTo( -m*moment_arm <= u14 <= m*moment_arm); 
-ocp.subjectTo( -m*moment_arm <= u15 <= m*moment_arm); 
-ocp.subjectTo( -m*moment_arm <= u16 <= m*moment_arm); 
+ocp.subjectTo( -0.6 <= u11 <= 0.6);
+ocp.subjectTo( -0.3 <= u12 <= 0.3); 
+ocp.subjectTo( -0.3 <= u13 <= 0.3); 
+ocp.subjectTo( -0.6*moment_arm <= u14 <= 0.6*moment_arm); 
+ocp.subjectTo( -0.3*moment_arm <= u15 <= 0.3*moment_arm); 
+ocp.subjectTo( -0.3*moment_arm <= u16 <= 0.3*moment_arm); 
 ocp.subjectTo( -V_MAX <= v1 <= V_MAX ); 
  
 mpc = acado.OCPexport( ocp );
