@@ -228,7 +228,7 @@ class DistributedMPC(object):
                                            geometry_msgs.msg.WrenchStamped,
                                            queue_size=1)
         
-        self.broadcast_pub = rospy.Publisher("~leader_target_vel", 
+        self.broadcast_pub = rospy.Publisher("~broadcast_information", 
                                              reswarm_dmpc.msg.InformationStamped,
                                              queue_size=1)
 
@@ -240,13 +240,13 @@ class DistributedMPC(object):
         """
 
         # Get control input service
-        self.get_control = rospy.ServiceProxy("~subleader/get_control", 
+        self.get_control = rospy.ServiceProxy("~get_control_srv", 
                                               reswarm_dmpc.srv.GetControl)
 
-        self.set_weights = rospy.ServiceProxy("~set_weights", 
+        self.set_weights = rospy.ServiceProxy("~set_weights_srv", 
                                               reswarm_dmpc.srv.SetWeights)
 
-        self.start_service = rospy.Service("~start", std_srvs.srv.SetBool, self.start_srv_callback)
+        self.start_service = rospy.Service("~start_srv", std_srvs.srv.SetBool, self.start_srv_callback)
 
         # Wait for services
         self.get_control.wait_for_service()

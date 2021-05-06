@@ -1,8 +1,22 @@
 <?xml version="1.0"?>
 <launch>
-    <group ns="leader">
+    <group ns="honey">
         <rosparam file="$(find reswarm_dmpc)/config/leader_iface.yaml" command="load" ns="" />
-        <node pkg="reswarm_dmpc" type="ros_node_leader.py" name="leader_iface" output="screen"/>
-        <node pkg="reswarm_dmpc" type="leader_ctl_node" name="leader_ctl_node"/>    
+        <node pkg="reswarm_dmpc" type="ros_node_leader.py" name="leader_iface" output="screen">
+            <!-- Topics -->
+            <remap from="~pose_topic" to="pose"/>
+            <remap from="~twist_topic" to="twist"/>
+            <remap from="~follower_pose" to="/bumble/pose"/>
+            <remap from="~control_topic" to="ctl/fam"/>
+            <remap from="~broadcast_information" to="information"/>
+            <!-- Services -->
+            <remap from="~get_control_srv" to="get_control"/>
+            <remap from="~set_weights_srv" to="set_weights"/>
+            <remap from="~start_srv" to="start"/>
+        </node>
+        <node pkg="reswarm_dmpc" type="leader_ctl_node" name="leader_ctl_node">
+            <remap from="~get_control_srv" to="get_control"/>
+            <remap from="~set_weights_srv" to="set_weights"/>
+        </node>    
     </group>
 </launch>

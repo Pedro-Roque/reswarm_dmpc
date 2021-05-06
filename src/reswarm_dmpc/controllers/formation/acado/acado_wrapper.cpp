@@ -9,10 +9,10 @@ nh_(nh){
   acado_initializeSolver();
 
   // Set control service
-  get_control_ = nh_.advertiseService("get_control", &AcadoMPC::GetControlCallback, this);
+  get_control_ = nh_.advertiseService("~get_control_srv", &AcadoMPC::GetControlCallback, this);
 
   // Set weigths service
-  set_weights_ = nh_.advertiseService("set_weights", &AcadoMPC::SetWeightsCallback, this);
+  set_weights_ = nh_.advertiseService("~set_weights_srv", &AcadoMPC::SetWeightsCallback, this);
 
   // Initialize y and yN
   for(int i = 0; i < ACADO_NY*(ACADO_N); i++)
@@ -79,6 +79,10 @@ bool AcadoMPC::SetWeightsCallback(reswarm_dmpc::SetWeights::Request &req,
 	{
 		acadoVariables.WN[i] = *it;
 	}
+
+  // Answer back:
+  res.success = true;
+  res.message = "Weights set successfully!";
   return true;
 }
 

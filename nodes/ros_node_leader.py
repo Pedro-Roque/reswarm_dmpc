@@ -199,13 +199,13 @@ class DistributedMPC(object):
         Helper function to create all services.
         """
         # Get control input service
-        self.get_control = rospy.ServiceProxy("/leader/get_control", 
+        self.get_control = rospy.ServiceProxy("~get_control_srv", 
                                               reswarm_dmpc.srv.GetControl)
 
-        self.set_weights = rospy.ServiceProxy("/leader/set_weights", 
+        self.set_weights = rospy.ServiceProxy("~set_weights_srv", 
                                               reswarm_dmpc.srv.SetWeights)
 
-        self.start_service = rospy.Service("~start", std_srvs.srv.SetBool, self.start_srv_callback)
+        self.start_service = rospy.Service("~start_srv", std_srvs.srv.SetBool, self.start_srv_callback)
 
         # Wait for services
         self.get_control.wait_for_service()
@@ -386,7 +386,7 @@ class DistributedMPC(object):
         """
         Main operation loop.
         """
-        
+
         while not rospy.is_shutdown():
 
             # Only do something when started
