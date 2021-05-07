@@ -288,7 +288,7 @@ class DistributedMPC(object):
         if val is False:
             return val, 0
         
-        # Valid data, so we proceed
+        # Valid data, so we proceed 
         self.target_vel = self.rg.get_vel_trajectory_at_t(t, self.N+1)
         rel_pos = self.get_relative_pos()
         self.x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13+3,1))
