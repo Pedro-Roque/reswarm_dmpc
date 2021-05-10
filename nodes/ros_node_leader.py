@@ -11,6 +11,7 @@ import geometry_msgs.msg
 import std_srvs.srv
 import reswarm_dmpc.srv
 import reswarm_dmpc.msg
+import ff_msgs.msg
 
 DEBUG = False
 OVERRIDE_TS = False
@@ -186,7 +187,7 @@ class DistributedMPC(object):
 
         # Publishers
         self.control_pub = rospy.Publisher("~control_topic",
-                                           geometry_msgs.msg.WrenchStamped,
+                                           ff_msgs.msg.FamCommand,
                                            queue_size=1)
         
         self.broadcast_pub = rospy.Publisher("~broadcast_information", 
@@ -341,7 +342,7 @@ class DistributedMPC(object):
         """
         
         # Create message
-        u = geometry_msgs.msg.WrenchStamped()
+        u = ff_msgs.msg.FamCommand()
 
         # Fill header
         u.header.frame_id = 'body'
@@ -438,8 +439,8 @@ class DistributedMPC(object):
                 temp_kkt = ans.kkt_value
                 req.predicted_state = np.asarray(ans.predicted_state).reshape((self.Nx*(self.N+1),1))
                 req.predicted_input = np.asarray(ans.predicted_input).reshape((self.Nu*self.N, 1))
-                rospy.loginfo("[RTI Loop] Solver kkT: "+str(ans.kkt_value))
                 rospy.loginfo("[RTI Loop] Trial: "+str(tries))
+                rospy.loginfo("[RTI Loop] Solver kkT: "+str(ans.kkt_value))
                 tries += 1
             tout = rospy.get_time() - tin
             rospy.loginfo("Time for control: "+str(tout))

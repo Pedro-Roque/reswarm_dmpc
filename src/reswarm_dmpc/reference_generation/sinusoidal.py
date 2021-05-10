@@ -8,7 +8,7 @@ class SinusoidalReference(object):
 
     """
     def __init__(self, dt, x0,
-                 f=0.01, A=0.01, time_span=20.0):
+                 f=0.035, A=0.06, time_span=120.0):
         """
         Initialize the Sinusoidal reference class.
 
