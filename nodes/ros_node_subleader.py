@@ -464,11 +464,10 @@ class DistributedMPC(object):
         :return: [description]
         :rtype: [type]
         """
-        predicted_state = np.asarray(ans.predicted_state).reshape((self.Nx * (self.N + 1), 1))
-        for i in range(self.Nx * (self.N + 1)):
-            predicted_state[(self.Nx * i + 6):(self.Nx * i + 10)] = predicted_state[(self.Nx * i + 6):(self.Nx * i + 10)] / \
-                                                                    np.linalg.norm(predicted_state[(self.Nx * i + 6):(self.Nx * i + 10)])
-
+        predicted_state = np.asarray(ans.predicted_state).reshape(((self.N + 1), self.Nx)).T
+        for i in range(self.N + 1):
+            q = predicted_state[6:10, i]
+            predicted_state[6:10, i] = q / np.linalg.norm(q)
         return predicted_state.ravel(order="F").tolist()
 
     def run(self):

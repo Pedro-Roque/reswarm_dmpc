@@ -420,12 +420,9 @@ class DistributedMPC(object):
         :rtype: [type]
         """
         predicted_state = np.asarray(ans.predicted_state).reshape(((self.N + 1), self.Nx)).T
-        print("Predicted state: ", predicted_state)
         for i in range(self.N + 1):
             q = predicted_state[6:10, i]
-            print("Q", i, ": ", q)
             predicted_state[6:10, i] = q / np.linalg.norm(q)
-        print("Predicted state listed: ", predicted_state.ravel(order="F").tolist())
         return predicted_state.ravel(order="F").tolist()
 
     def run(self):
