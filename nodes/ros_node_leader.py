@@ -44,6 +44,7 @@ class DistributedMPC(object):
         self.rg_start = np.array([rg_start]).reshape((3, 1))
         bearings = rospy.get_param("bearings")
         self.bearings = np.array([bearings['f1']]).reshape((3, 1))
+        self.qd = np.array([0, 0, -0.707, 0.707]).reshape((4, 1))
 
         # Print params:
         if DEBUG:
@@ -304,11 +305,12 @@ class DistributedMPC(object):
             self.u_traj = np.repeat(np.zeros((1, 6)), self.N, axis=0)
 
         online_data = np.repeat(self.bearings, self.N + 1, axis=1)
+        qd_rep = np.repeat(self.qd, self.N + 1, axis=1)
         if DEBUG:
             print("Bearings repeated shape: ", online_data.shape)
             print("Velocity shape: ", self.target_vel.shape)
 
-        self.online_data = np.concatenate((online_data, self.target_vel), axis=0)
+        self.online_data = np.concatenate((online_data, qd_rep, self.target_vel), axis=0)
 
         if DEBUG:
             print("Target Velocity: ", self.target_vel.shape)
@@ -417,10 +419,13 @@ class DistributedMPC(object):
         :return: [description]
         :rtype: [type]
         """
-        predicted_state = np.asarray(ans.predicted_state).reshape((self.Nx * (self.N + 1), 1))
-        for i in range(self.Nx * (self.N + 1)):
-            predicted_state[(i + 6):(13 * i + 10)] = predicted_state[(i + 6):(13 * i + 10)] / np.linalg.norm(predicted_state[(i + 6):(13 * i + 10)])
-
+        predicted_state = np.asarray(ans.predicted_state).reshape(((self.N + 1), self.Nx)).T
+        print("Predicted state: ", predicted_state)
+        for i in range(self.N + 1):
+            q = predicted_state[6:10, i]
+            print("Q", i, ": ", q)
+            predicted_state[6:10, i] = q / np.linalg.norm(q)
+        print("Predicted state listed: ", predicted_state.ravel(order="F").tolist())
         return predicted_state.ravel(order="F").tolist()
 
     def run(self):
@@ -455,10 +460,6 @@ class DistributedMPC(object):
                 if np.isnan(temp_kkt) or tries == 9:
                     rospy.logwarn("NaN detected on solver output.")
                     req = self.reset_control_request(req)
-                    print("Req x0: ", req.initial_state)
-                    print("Req X: ", req.predicted_state)
-                    print("Req U: ", req.predicted_input)
-                    print("Req OD: ", req.online_data)
                 else:
                     req.predicted_state = self.propagate_predicted_state(ans)
                     req.predicted_input = np.asarray(ans.predicted_input).reshape((self.Nu * self.N, 1)).ravel(order="F").tolist()

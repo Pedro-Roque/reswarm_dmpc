@@ -20,7 +20,7 @@ J = diag([2.3,2.4,21]*10^-2); invJ = inv(J);
 
 %% Problem setup
 DifferentialState p1(3) v1(3) q1(4) w1(3) relPos(3*followers)
-OnlineData relPosD(3*followers) vD(3)
+OnlineData relPosD(3*followers) qD(4) vD(3)
 
 Control u1(6)                                            
 
@@ -40,7 +40,7 @@ W = acado.BMatrix(W_mat);
 WN = acado.BMatrix(WN_mat);
 
 R1 = Rq(q1);
-RD = Rq([0,0,0,1]);
+RD = Rq(qD);
 
 J1 = [relPos - relPosD; ...
       v1 - vD; ...  
