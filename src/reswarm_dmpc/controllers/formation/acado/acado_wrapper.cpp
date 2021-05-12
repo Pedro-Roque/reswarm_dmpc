@@ -6,7 +6,6 @@ AcadoMPC::AcadoMPC(const ros::NodeHandle &nh):
 nh_(nh){
   
   // Initialize solver memory
-  acado_initializeSolver();
 
   // Set control service
   get_control_ = nh_.advertiseService("get_control_srv", &AcadoMPC::GetControlCallback, this);
@@ -38,19 +37,22 @@ bool AcadoMPC::GetControlCallback(reswarm_dmpc::GetControl::Request &req,
 
   // Call controller
   acado_timer t;
-	acado_preparationStep();
 	acado_tic( &t );
   int status;
   int iter;
 
+  acado_initializeSolver();
   // Perform the feedback step.
   for(iter = 0; iter < NUM_STEPS; ++iter)
 	{
+	  acado_preparationStep();
     status = acado_feedbackStep( );
     //acado_shiftStates(2, 0, 0);
     //acado_shiftControls( 0 );
-    acado_preparationStep();
+    //acado_preparationStep();
 	}
+  acado_printHeader();
+  acado_printControlVariables();
 
 	// Extract parameters
   res.status = status;

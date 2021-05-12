@@ -14,6 +14,7 @@ import ff_msgs.msg
 
 DEBUG = False
 OVERRIDE_TS = False
+AGENTS = 2  
 
 class DistributedMPC(object):
     """
@@ -31,7 +32,7 @@ class DistributedMPC(object):
         self.start = False
         self.state = np.zeros((13,1))
         self.state[9] = 1
-        self.qd = np.array([0,0,0,1]).reshape((4,))
+        self.qd = np.array([0,0,-0.707,0.707]).reshape((4,))
         self.rg = None
         self.t0 = 0.0
         self.l_position = None
@@ -294,7 +295,7 @@ class DistributedMPC(object):
             vel_val = True
         if rospy.get_time() - self.l_position_ts < self.ts_threshold or OVERRIDE_TS:
             lead_val = True
-        if rospy.get_time() - self.f1_position_ts < self.ts_threshold or OVERRIDE_TS:
+        if rospy.get_time() - self.f1_position_ts < self.ts_threshold or OVERRIDE_TS or AGENTS == 2:
             f1_val = True
         if rospy.get_time() - self.information_ts < self.ts_threshold or OVERRIDE_TS:
             info_val = True
@@ -314,9 +315,19 @@ class DistributedMPC(object):
         :return: relative position to leader and follower 1
         :rtype: np.ndarray, np.ndarray
         """
-        rmat = r_mat_np(self.state[6:10]).T
+        rmat = r_mat_np(self.state[6:10])
         rel_pos_l = np.dot(rmat, self.state[0:3] - self.l_position)
-        rel_pos_f1 = np.dot(rmat, self.state[0:3] - self.f1_position)
+        if AGENTS == 2:
+            rel_pos_f1 = self.bearings[3:].reshape(3,1)
+            rel_pos_f1 = rel_pos_f1 + np.array([[1e-9, 1e-9, 1e-9]]).T  # Add noise to avoid singular point
+            if DEBUG:
+                print("Rel F1: ", rel_pos_f1)
+                print("Rel F1 shape: ", rel_pos_f1.shape)
+        else:
+            rel_pos_f1 = np.dot(rmat, self.state[0:3] - self.f1_position)
+            if DEBUG:
+                print("Rel F1: ", rel_pos_f1)
+                print("Rel F1 shape: ", rel_pos_f1.shape)
         return rel_pos_l, rel_pos_f1
 
     def prepare_request(self):
@@ -354,13 +365,13 @@ class DistributedMPC(object):
             print("X0 data: ", self.x0.ravel(order="F").tolist())
             print("X data: ", self.x_traj.ravel(order="F").tolist())
             print("U data: ", self.u_traj.ravel(order="F").tolist())
-            print("OD data: ", online_data.ravel(order="F").tolist())
+            print("OD data: ", self.online_data.ravel(order="F").tolist())
 
         srv = reswarm_dmpc.srv.GetControlRequest()
         srv.initial_state = self.x0.ravel(order="F").tolist()
         srv.predicted_state = self.x_traj.ravel(order="F").tolist()
         srv.predicted_input = self.u_traj.ravel(order="F").tolist()
-        srv.online_data = online_data.ravel(order="F").tolist()  
+        srv.online_data = self.online_data.ravel(order="F").tolist()  
 
         if DEBUG:
             print("Data shapes on sending:")
@@ -469,7 +480,7 @@ class DistributedMPC(object):
             tin = rospy.get_time()
             temp_kkt = Inf
             tries = 0
-            while temp_kkt > 100 and tries < 10: 
+            while (temp_kkt > 100 and tries < 10) or np.isnan(temp_kkt):
                 if np.isnan(temp_kkt):
                     req = self.reset_control_request(req)
                 ans = self.get_control(req)

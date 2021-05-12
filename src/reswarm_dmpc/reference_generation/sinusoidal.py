@@ -112,8 +112,9 @@ class SinusoidalReference(object):
         x_sp = np.append(x_sp, [vx], axis=0)
         x_sp = np.append(x_sp, [vy], axis=0)
         x_sp = np.append(x_sp, [vz], axis=0)
-        x_sp = np.append(x_sp, np.zeros((3, points)), axis=0)
-        x_sp = np.append(x_sp, np.ones((1, points)), axis=0)
+        x_sp = np.append(x_sp, np.zeros((2, points)), axis=0)
+        x_sp = np.append(x_sp, -0.707*np.ones((1, points)), axis=0)
+        x_sp = np.append(x_sp, 0.707*np.ones((1, points)), axis=0)
         x_sp = np.append(x_sp, np.zeros((3, points)), axis=0)
         self.full_trajectory = np.array(x_sp)
 

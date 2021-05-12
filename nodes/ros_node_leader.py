@@ -16,6 +16,7 @@ import ff_msgs.msg
 DEBUG = False
 OVERRIDE_TS = False
 
+
 class DistributedMPC(object):
     """
     Class implementing the distributed formation control MPC
@@ -30,7 +31,7 @@ class DistributedMPC(object):
         self.dt = 1
         self.rate = rospy.Rate(1)
         self.start = False
-        self.state = np.zeros((13,1))
+        self.state = np.zeros((13, 1))
         self.state[9] = 1
         self.rg = None
         self.t0 = 0.0
@@ -40,9 +41,9 @@ class DistributedMPC(object):
 
         # Collect parameters
         rg_start = rospy.get_param("traj_start")
-        self.rg_start = np.array([rg_start]).reshape((3,1))
+        self.rg_start = np.array([rg_start]).reshape((3, 1))
         bearings = rospy.get_param("bearings")
-        self.bearings = np.array([bearings['f1']]).reshape((3,1))
+        self.bearings = np.array([bearings['f1']]).reshape((3, 1))
 
         # Print params:
         if DEBUG:
@@ -57,25 +58,25 @@ class DistributedMPC(object):
 
         # MPC data
         self.N = 10
-        self.Nx = 3+3+4+3+3*1
+        self.Nx = 3 + 3 + 4 + 3 + 3 * 1
         self.Nu = 6
         self.x_traj = None
         self.u_traj = None
-        self.weights_size = 3+3+3*1+6
-        self.weights_size_N = 3+3+3*1
-        rpos_weights = np.ones((3*1,))*0.05
-        verr_weights = np.ones((3,))*10
-        att_weights = np.ones((3,))*10
-        control_weights = np.array([5, 5, 5, 1, 1, 1])*10
+        self.weights_size = 3 + 3 + 3 * 1 + 6
+        self.weights_size_N = 3 + 3 + 3 * 1
+        rpos_weights = np.ones((3 * 1,)) * 0.05
+        verr_weights = np.ones((3,)) * 10
+        att_weights = np.ones((3,)) * 10
+        control_weights = np.array([5, 5, 5, 1, 1, 1]) * 10
 
         self.ln_weights = np.concatenate((rpos_weights,
                                           verr_weights,
                                           att_weights,
-                                          control_weights), axis = 0)
+                                          control_weights), axis=0)
 
         self.V_weights = np.concatenate((rpos_weights,
                                          verr_weights,
-                                         att_weights), axis = 0)*200
+                                         att_weights), axis=0) * 200
 
         # Set publishers and subscribers
         self.set_services()
@@ -96,7 +97,7 @@ class DistributedMPC(object):
         :type msg: geometry_msgs.msg.PoseStamped
         """
 
-        self.pose_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
+        self.pose_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
         self.pose = np.array([[msg.pose.position.x,
                                msg.pose.position.y,
                                msg.pose.position.z,
@@ -117,7 +118,7 @@ class DistributedMPC(object):
         :type msg: geometry_msgs.msg.TwistStamped
         """
 
-        self.twist_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
+        self.twist_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
         self.twist = np.array([[msg.twist.linear.x,
                                 msg.twist.linear.y,
                                 msg.twist.linear.z,
@@ -131,15 +132,16 @@ class DistributedMPC(object):
 
     def f1_pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
         """
-        Follower 1 position callback (for further simulation of a rel. pos. sensor)
+        Follower 1 position callback (for further simulation of a rel. pos.
+        sensor)
 
         :param msg: follower 1 position
         :type msg: geometry_msgs.msg.PoseStamped
         """
 
-        self.f1_position_ts = msg.header.stamp.secs+1e-9*msg.header.stamp.nsecs
-        self.f1_position = np.array([[msg.pose.position.x, 
-                                      msg.pose.position.y, 
+        self.f1_position_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.f1_position = np.array([[msg.pose.position.x,
+                                      msg.pose.position.y,
                                       msg.pose.position.z]]).T
         return
 
@@ -160,7 +162,8 @@ class DistributedMPC(object):
         ans.message = "Node started!"
 
         # Check for valid pose and twist
-        self.rg = SinusoidalReference(self.dt, self.rg_start, A=0.1, time_span=45)
+        self.rg = SinusoidalReference(self.dt, self.rg_start, A=0.1,
+                                      time_span=45)
         self.t0 = rospy.get_time()
 
         return ans
@@ -189,8 +192,8 @@ class DistributedMPC(object):
         self.control_pub = rospy.Publisher("~control_topic",
                                            ff_msgs.msg.FamCommand,
                                            queue_size=1)
-        
-        self.broadcast_pub = rospy.Publisher("~broadcast_information", 
+
+        self.broadcast_pub = rospy.Publisher("~broadcast_information",
                                              reswarm_dmpc.msg.InformationStamped,
                                              queue_size=1)
 
@@ -201,13 +204,14 @@ class DistributedMPC(object):
         Helper function to create all services.
         """
         # Get control input service
-        self.get_control = rospy.ServiceProxy("~get_control_srv", 
+        self.get_control = rospy.ServiceProxy("~get_control_srv",
                                               reswarm_dmpc.srv.GetControl)
 
-        self.set_weights = rospy.ServiceProxy("~set_weights_srv", 
+        self.set_weights = rospy.ServiceProxy("~set_weights_srv",
                                               reswarm_dmpc.srv.SetWeights)
 
-        self.start_service = rospy.Service("~start_srv", std_srvs.srv.SetBool, self.start_srv_callback)
+        self.start_service = rospy.Service("~start_srv", std_srvs.srv.SetBool,
+                                           self.start_srv_callback)
 
         # Wait for services
         self.get_control.wait_for_service()
@@ -231,8 +235,8 @@ class DistributedMPC(object):
             print("WN: ", len(srv.WN))
 
         ans = self.set_weights(srv)
-        rospy.loginfo("Set weights success: "+str(ans.success)+\
-                      "\nSet weights message: "+str(ans.message))
+        rospy.loginfo("Set weights success: " + str(ans.success)
+                      + "\nSet weights message: " + str(ans.message))
 
     def check_data_validity(self):
         """
@@ -255,11 +259,11 @@ class DistributedMPC(object):
             rel_val = True
 
         # Check weights validity
-        
+
         if pos_val is False or vel_val is False or rel_val is False:
-            rospy.logwarn("Skipping control. Validity flags:\nPos: "\
-                           +str(pos_val)+"; Vel: "+str(vel_val)+"; Rel: "+str(rel_val))
-        
+            rospy.logwarn("Skipping control. Validity flags:\nPos: "
+                          + str(pos_val) + "; Vel: " + str(vel_val) + "; Rel: " + str(rel_val))
+
         return pos_val and vel_val and rel_val
 
     def get_relative_pos(self):
@@ -270,7 +274,7 @@ class DistributedMPC(object):
         :rtype: np.ndarray
         """
 
-        rmat = r_mat_np(self.state[6:10]).T
+        rmat = r_mat_np(self.state[6:10])
         rel_pos = np.dot(rmat, self.state[0:3] - self.f1_position)
         return rel_pos
 
@@ -285,26 +289,26 @@ class DistributedMPC(object):
         # Get trajectory
         val = False
         val = self.check_data_validity()
-        rospy.loginfo("Validity: "+ str(val))
+        rospy.loginfo("Validity: " + str(val))
         if val is False:
             return val, 0
-        
-        # Valid data, so we proceed 
-        self.target_vel = self.rg.get_vel_trajectory_at_t(t, self.N+1)
+
+        # Valid data, so we proceed
+        self.target_vel = self.rg.get_vel_trajectory_at_t(t, self.N + 1)
         rel_pos = self.get_relative_pos()
-        self.x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13+3,1))
+        self.x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13 + 3, 1))
         if self.x_traj is None:
-            self.x_traj = np.repeat(self.x0, self.N+1, axis=1)
+            self.x_traj = np.repeat(self.x0, self.N + 1, axis=1)
 
         if self.u_traj is None:
-            self.u_traj = np.repeat(np.zeros((1,6)), self.N, axis=0)
+            self.u_traj = np.repeat(np.zeros((1, 6)), self.N, axis=0)
 
-        online_data = np.repeat(self.bearings, self.N+1, axis=1)
+        online_data = np.repeat(self.bearings, self.N + 1, axis=1)
         if DEBUG:
             print("Bearings repeated shape: ", online_data.shape)
             print("Velocity shape: ", self.target_vel.shape)
-        
-        self.online_data = np.concatenate((online_data,self.target_vel), axis=0)
+
+        self.online_data = np.concatenate((online_data, self.target_vel), axis=0)
 
         if DEBUG:
             print("Target Velocity: ", self.target_vel.shape)
@@ -313,8 +317,8 @@ class DistributedMPC(object):
             print("rel_pos dims: ", rel_pos.shape)
             print("Bearings dims: ", self.bearings.shape)
             print("X0 data: ", self.x0.ravel(order="F").tolist())
-            print("X data: ", self.x_traj.ravel(order="F").tolist()) # .ravel(order="C")
-            print("U data: ", self.u_traj.ravel(order="F").tolist()) # .ravel(order="C")
+            print("X data: ", self.x_traj.ravel(order="F").tolist())
+            print("U data: ", self.u_traj.ravel(order="F").tolist())
             print("OD data: ", self.online_data.ravel(order="F").tolist())
 
         srv = reswarm_dmpc.srv.GetControlRequest()
@@ -340,13 +344,13 @@ class DistributedMPC(object):
         :return: control input to vehicle
         :rtype: geometry_msgs.msg.WrenchStamped()
         """
-        
+
         # Create message
         u = ff_msgs.msg.FamCommand()
 
         # Fill header
         u.header.frame_id = 'body'
-        u.header.stamp = rospy.Time.now()   
+        u.header.stamp = rospy.Time.now()
 
         # Fill force / torque messages
         u.wrench.force.x = self.u_traj[0]
@@ -371,16 +375,16 @@ class DistributedMPC(object):
 
         # Fill header
         v.header.frame_id = 'inertial'
-        v.header.stamp = rospy.Time.now()  
+        v.header.stamp = rospy.Time.now()
 
         # Fill information fields
         v.leader_velocity.linear.x = self.state[3]
         v.leader_velocity.linear.y = self.state[4]
         v.leader_velocity.linear.z = self.state[5]
-        
-        v.leader_target.linear.x = self.target_vel[0,0]
-        v.leader_target.linear.y = self.target_vel[1,0]
-        v.leader_target.linear.z = self.target_vel[2,0]
+
+        v.leader_target.linear.x = self.target_vel[0, 0]
+        v.leader_target.linear.y = self.target_vel[1, 0]
+        v.leader_target.linear.z = self.target_vel[2, 0]
 
         return v
 
@@ -393,12 +397,9 @@ class DistributedMPC(object):
         :return: resetted solver request
         :rtype: reswarm_dmpc.srv.GetControlRequest
         """
-
-        if self.x_traj is None:
-            self.x_traj = np.repeat(self.x0, self.N+1, axis=1)
-
-        if self.u_traj is None:
-            self.u_traj = np.repeat(np.zeros((1,6)), self.N, axis=0)
+        self.x0[-3:] = self.x0[-3:] + 1e-9 * np.ones((3, 1))
+        self.x_traj = np.repeat(self.x0, self.N + 1, axis=1)
+        self.u_traj = np.repeat(np.zeros((1, 6)), self.N, axis=0)
 
         srv.initial_state = self.x0.ravel(order="F").tolist()
         srv.predicted_state = self.x_traj.ravel(order="F").tolist()
@@ -406,6 +407,21 @@ class DistributedMPC(object):
         srv.online_data = self.online_data.ravel(order="F").tolist()
 
         return srv
+
+    def propagate_predicted_state(self, ans):
+        """
+        Fills the predicted_state request once data is available.
+
+        :param ans: [description]
+        :type ans: [type]
+        :return: [description]
+        :rtype: [type]
+        """
+        predicted_state = np.asarray(ans.predicted_state).reshape((self.Nx * (self.N + 1), 1))
+        for i in range(self.Nx * (self.N + 1)):
+            predicted_state[(i + 6):(13 * i + 10)] = predicted_state[(i + 6):(13 * i + 10)] / np.linalg.norm(predicted_state[(i + 6):(13 * i + 10)])
+
+        return predicted_state.ravel(order="F").tolist()
 
     def run(self):
         """
@@ -419,7 +435,7 @@ class DistributedMPC(object):
                 self.rate.sleep()
                 rospy.loginfo("Sleeping...")
                 continue
-            
+
             rospy.loginfo("Looping!")
             # Use self.pose, self.twist to generate a control input
             t = rospy.get_time() - self.t0
@@ -432,28 +448,34 @@ class DistributedMPC(object):
             tin = rospy.get_time()
             temp_kkt = Inf
             tries = 0
-            while temp_kkt > 100 and tries < 10: 
-                if np.isnan(temp_kkt):
-                    req = self.reset_control_request(req)
+            while (temp_kkt > 100 or np.isnan(temp_kkt)) and tries < 10:
+                rospy.loginfo("[RTI Loop] Trial: " + str(tries))
                 ans = self.get_control(req)
                 temp_kkt = ans.kkt_value
-                req.predicted_state = np.asarray(ans.predicted_state).reshape((self.Nx*(self.N+1),1))
-                req.predicted_input = np.asarray(ans.predicted_input).reshape((self.Nu*self.N, 1))
-                rospy.loginfo("[RTI Loop] Trial: "+str(tries))
-                rospy.loginfo("[RTI Loop] Solver kkT: "+str(ans.kkt_value))
+                if np.isnan(temp_kkt) or tries == 9:
+                    rospy.logwarn("NaN detected on solver output.")
+                    req = self.reset_control_request(req)
+                    print("Req x0: ", req.initial_state)
+                    print("Req X: ", req.predicted_state)
+                    print("Req U: ", req.predicted_input)
+                    print("Req OD: ", req.online_data)
+                else:
+                    req.predicted_state = self.propagate_predicted_state(ans)
+                    req.predicted_input = np.asarray(ans.predicted_input).reshape((self.Nu * self.N, 1)).ravel(order="F").tolist()
+                rospy.loginfo("[RTI Loop] Solver kkT: " + str(ans.kkt_value))
                 tries += 1
             tout = rospy.get_time() - tin
-            rospy.loginfo("Time for control: "+str(tout))
+            rospy.loginfo("Time for control: " + str(tout))
 
             # Update the trajectories for the next iteration
-            self.x_traj = np.asarray(ans.predicted_state).reshape((self.Nx*(self.N+1),1))
-            self.u_traj = np.asarray(ans.predicted_input).reshape((self.Nu*self.N, 1))
+            self.x_traj = np.asarray(ans.predicted_state).reshape((self.Nx * (self.N + 1), 1))
+            self.u_traj = np.asarray(ans.predicted_input).reshape((self.Nu * self.N, 1))
             if DEBUG:
                 print("X traj: ", self.x_traj.ravel(order="F").tolist())
                 print("U traj: ", self.u_traj.ravel(order="F").tolist())
-            rospy.loginfo("Solver status: "+str(ans.status))
-            rospy.loginfo("Solver cpuTime: "+str(ans.solution_time))
-            rospy.loginfo("Solver Cost: "+str(ans.objective_value))
+            rospy.loginfo("Solver status: " + str(ans.status))
+            rospy.loginfo("Solver cpuTime: " + str(ans.solution_time))
+            rospy.loginfo("Solver Cost: " + str(ans.objective_value))
 
             # Create control input message
             u = self.create_control_message()
@@ -462,8 +484,6 @@ class DistributedMPC(object):
             # Publish control
             self.control_pub.publish(u)
             self.broadcast_pub.publish(v)
-
-
             self.rate.sleep()
     pass
 

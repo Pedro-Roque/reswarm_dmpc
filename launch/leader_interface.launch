@@ -14,7 +14,7 @@
             <remap from="~set_weights_srv" to="set_weights"/>
             <remap from="~start_srv" to="start"/>
         </node>
-        <node pkg="reswarm_dmpc" type="leader_ctl_node" name="leader_ctl_node">
+        <node pkg="reswarm_dmpc" type="leader_ctl_node" name="leader_ctl_node" output="log">
             <remap from="get_control_srv" to="get_control"/>
             <remap from="set_weights_srv" to="set_weights"/>
         </node>    
