@@ -12,6 +12,8 @@
             <!-- Services -->
             <remap from="~get_control_srv" to="get_control"/>
             <remap from="~set_weights_srv" to="set_weights"/>
+            <remap from="~onboard_ctl_enable_srv" to="gnc/ctl/enable"/>
+            <remap from="~pmc_timeout_srv" to="hw/pmc/set_timeout"/>
             <remap from="~start_srv" to="start"/>
         </node>
         <node pkg="reswarm_dmpc" type="leader_ctl_node" name="leader_ctl_node" output="log">

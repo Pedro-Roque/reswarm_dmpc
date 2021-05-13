@@ -87,6 +87,16 @@ class DistributedMPC(object):
         # Set publishers and subscribers
         self.set_services()
         self.set_subscribers_publishers()
+
+        # Change onboard timeout
+        new_timeout = ff_msgs.srv.SetFloatRequest()
+        new_timeout.data = 1.5
+        ans = self.pmc_timeout(new_timeout)
+        if not ans.success:
+            rospy.logerr("Couldn't change PMC timeout.")
+            exit()
+
+        # Set weights and run main loop
         self.set_weights_iface()
         self.run()
 
@@ -192,11 +202,24 @@ class DistributedMPC(object):
         :return: success at starting
         :rtype: std_srvs.srv.SetBoolResponse
         """
-        self.start = req.data
-
+        state = req.data
         ans = std_srvs.srv.SetBoolResponse()
-        ans.success = True
-        ans.message = "Node started!"
+        if state:
+            ans.success = True
+            ans.message = "Node started!"
+            # Disable onboard controller
+            obc = std_srvs.srv.SetBoolRequest()
+            obc.data = False
+            self.onboard_ctl(obc)
+            self.start = True
+        else:
+            ans.success = True
+            ans.message = "Node stopped!"
+            # Enable onboard controller
+            obc = std_srvs.srv.SetBoolRequest()
+            obc.data = True
+            self.onboard_ctl(obc)
+            self.start = False
 
         return ans
 
@@ -249,11 +272,19 @@ class DistributedMPC(object):
         self.set_weights = rospy.ServiceProxy("~set_weights_srv",
                                               reswarm_dmpc.srv.SetWeights)
 
+        # Astrobee control disable and timeout change service
+        self.onboard_ctl = rospy.ServiceProxy("~onboard_ctl_enable_srv",
+                                              std_srvs.srv.SetBool)
+        self.pmc_timeout = rospy.ServiceProxy("~pmc_timeout_srv",
+                                              ff_msgs.srv.SetFloat)
+
         self.start_service = rospy.Service("~start_srv", std_srvs.srv.SetBool, self.start_srv_callback)
 
         # Wait for services
         self.get_control.wait_for_service()
         self.set_weights.wait_for_service()
+        self.onboard_ctl.wait_for_service()
+        self.pmc_timeout.wait_for_service()
         pass
 
     def set_weights_iface(self):
