@@ -11,6 +11,7 @@
             <remap from="~leader_information" to="/honey/information"/>
             <remap from="~control_topic" to="gnc/ctl/command"/>
             <remap from="~broadcast_information" to="information"/>
+            <remap from="~flight_mode" to="mob/flight_mode"/>
             <!-- Services -->
             <remap from="~get_control_srv" to="get_control"/>
             <remap from="~set_weights_srv" to="set_weights"/>

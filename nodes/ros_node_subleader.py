@@ -11,6 +11,7 @@ import std_srvs.srv
 import reswarm_dmpc.srv
 import reswarm_dmpc.msg
 import ff_msgs.msg
+import ff_msgs.srv
 
 DEBUG = False
 OVERRIDE_TS = False
@@ -29,7 +30,7 @@ class DistributedMPC(object):
         """
 
         self.dt = 1
-        self.rate = rospy.Rate(1)
+        self.rate = rospy.Rate(5)
         self.start = False
         self.state = np.zeros((13, 1))
         self.state[9] = 1
@@ -258,6 +259,10 @@ class DistributedMPC(object):
                                              reswarm_dmpc.msg.InformationStamped,
                                              queue_size=1)
 
+        self.flight_mode_pub = rospy.Publisher("~flight_mode",
+                                               ff_msgs.msg.FlightMode,
+                                               queue_size=1)
+
         pass
 
     def set_services(self):
@@ -471,6 +476,41 @@ class DistributedMPC(object):
 
         return v
 
+    def create_flight_mode_message(self):
+        """
+        Helper function to create the flight mode message.
+        """
+
+        fm = ff_msgs.msg.FlightMode()
+
+        fm.name = "difficult"
+
+        fm.collision_radius = 0.25
+        fm.control_enabled = False
+
+        fm.att_ki = Vec(0.002, 0.002, 0.002)
+        fm.att_kp = Vec(4.0, 4.0, 4.0)
+        fm.omega_kd = Vec(3.2, 3.2, 3.2)
+
+        fm.pos_kp = Vec(.6, .6, .6)
+        fm.pos_ki = Vec(0.0001, 0.0001, 0.0001)
+        fm.vel_kd = Vec(1.2, 1.2, 1.2)
+
+        fm.speed = 3
+
+        fm.tolerance_pos = 0.2
+        fm.tolerance_vel = 0
+        fm.tolerance_att = 0.3490
+        fm.tolerance_omega = 0
+        fm.tolerance_time = 1.0
+
+        fm.hard_limit_accel = 0.0200
+        fm.hard_limit_omega = 0.5236
+        fm.hard_limit_alpha = 0.2500
+        fm.hard_limit_vel = 0.4000
+
+        return fm
+
     def reset_control_request(self, srv):
         """
         Reset the solver internal variables.
@@ -558,10 +598,12 @@ class DistributedMPC(object):
             # Create control input message
             u = self.create_control_message()
             v = self.create_broadcast_message()
+            fm = self.create_flight_mode_message()
 
             # Publish control
             self.control_pub.publish(u)
             self.broadcast_pub.publish(v)
+            self.flight_mode_pub.publish(fm)
             self.rate.sleep()
     pass
 
