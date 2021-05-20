@@ -9,7 +9,7 @@
             <remap from="~local_leader_pose" to="/honey/loc/pose"/>
             <remap from="~follower_pose" to="/queen/loc/pose"/>
             <remap from="~leader_information" to="/honey/information"/>
-            <remap from="~control_topic" to="ctl/fam"/>
+            <remap from="~control_topic" to="gnc/ctl/command"/>
             <remap from="~broadcast_information" to="information"/>
             <!-- Services -->
             <remap from="~get_control_srv" to="get_control"/>

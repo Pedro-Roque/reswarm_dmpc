@@ -92,8 +92,8 @@ class SinusoidalReference(object):
 
         t = np.linspace(t, (points-1)*self.dt+t, points)
         vx = self.A*np.cos(2*np.pi*self.f*t)
-        vy = self.A*np.sin(2*np.pi*self.f*t)
-        vz = 0.005*np.ones(points)
+        vy = -0.005*np.ones(points)
+        vz = self.A*np.sin(2*np.pi*self.f*t)
 
         # Once we have a velocity profile, we can create the
         # position references

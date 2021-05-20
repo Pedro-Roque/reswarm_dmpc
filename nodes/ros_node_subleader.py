@@ -439,6 +439,10 @@ class DistributedMPC(object):
         u.wrench.torque.y = self.u_traj[4]
         u.wrench.torque.z = self.u_traj[5]
 
+        # Set control mode and status
+        u.status = 3
+        u.control_mode = 2
+
         return u
 
     def create_broadcast_message(self):

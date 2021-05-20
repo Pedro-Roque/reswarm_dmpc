@@ -30,7 +30,7 @@ class DistributedMPC(object):
         """
 
         self.dt = 1
-        self.rate = rospy.Rate(1)
+        self.rate = rospy.Rate(5)
         self.start = False
         self.state = np.zeros((13, 1))
         self.state[9] = 1
@@ -64,21 +64,6 @@ class DistributedMPC(object):
         self.Nu = 6
         self.x_traj = None
         self.u_traj = None
-        self.weights_size = 3 + 3 + 3 * 1 + 6
-        self.weights_size_N = 3 + 3 + 3 * 1
-        rpos_weights = np.ones((3 * 1,)) * 0.05
-        verr_weights = np.ones((3,)) * 10
-        att_weights = np.ones((3,)) * 10
-        control_weights = np.array([5, 5, 5, 1, 1, 1]) * 10
-
-        self.ln_weights = np.concatenate((rpos_weights,
-                                          verr_weights,
-                                          att_weights,
-                                          control_weights), axis=0)
-
-        self.V_weights = np.concatenate((rpos_weights,
-                                         verr_weights,
-                                         att_weights), axis=0) * 200
 
         # Set publishers and subscribers
         self.set_services()
@@ -91,6 +76,8 @@ class DistributedMPC(object):
         if not ans.success:
             rospy.logerr("Couldn't change PMC timeout.")
             exit()
+        else:
+            rospy.loginfo("Timeout updated.")
 
         # Set weights and run main loop
         self.set_weights_iface()
@@ -224,11 +211,15 @@ class DistributedMPC(object):
         # Publishers
         self.control_pub = rospy.Publisher("~control_topic",
                                            ff_msgs.msg.FamCommand,
-                                           queue_size=1)
+                                           queue_size=1, latch=True)
 
         self.broadcast_pub = rospy.Publisher("~broadcast_information",
                                              reswarm_dmpc.msg.InformationStamped,
                                              queue_size=1)
+
+        self.flight_mode_pub = rospy.Publisher("~flight_mode",
+                                               ff_msgs.msg.FlightMode,
+                                               queue_size=1)
 
         pass
 
@@ -266,6 +257,23 @@ class DistributedMPC(object):
         """
 
         srv = reswarm_dmpc.srv.SetWeightsRequest()
+
+        self.weights_size = 3 + 3 + 3 * 1 + 6
+        self.weights_size_N = 3 + 3 + 3 * 1
+        rpos_weights = np.ones((3 * 1,)) * 0.05
+        verr_weights = np.ones((3,)) * 10
+        att_weights = np.ones((3,)) * 10
+        control_weights = np.array([5, 5, 5, 1, 1, 1]) * 10
+
+        self.ln_weights = np.concatenate((rpos_weights,
+                                          verr_weights,
+                                          att_weights,
+                                          control_weights), axis=0)
+
+        self.V_weights = np.concatenate((rpos_weights,
+                                         verr_weights,
+                                         att_weights), axis=0) * 200
+
         srv.W = np.diag(self.ln_weights).ravel(order="F").tolist()
         srv.WN = np.diag(self.V_weights).ravel(order="F").tolist()
 
@@ -403,6 +411,10 @@ class DistributedMPC(object):
         u.wrench.torque.y = self.u_traj[4]
         u.wrench.torque.z = self.u_traj[5]
 
+        # Set control mode and status
+        u.status = 3
+        u.control_mode = 2
+
         return u
 
     def create_broadcast_message(self):
@@ -430,6 +442,41 @@ class DistributedMPC(object):
         v.leader_target.linear.z = self.target_vel[2, 0]
 
         return v
+
+    def create_flight_mode_message(self):
+        """
+        Helper function to create the flight mode message.
+        """
+
+        fm = ff_msgs.msg.FlightMode()
+
+        fm.name = "difficult"
+
+        fm.collision_radius = 0.25
+        fm.control_enabled = False
+
+        fm.att_ki = Vec(0.002, 0.002, 0.002)
+        fm.att_kp = Vec(4.0, 4.0, 4.0)
+        fm.omega_kd = Vec(3.2, 3.2, 3.2)
+
+        fm.pos_kp = Vec(.6, .6, .6)
+        fm.pos_ki = Vec(0.0001, 0.0001, 0.0001)
+        fm.vel_kd = Vec(1.2, 1.2, 1.2)
+
+        fm.speed = 3
+
+        fm.tolerance_pos = 0.2
+        fm.tolerance_vel = 0
+        fm.tolerance_att = 0.3490
+        fm.tolerance_omega = 0
+        fm.tolerance_time = 1.0
+
+        fm.hard_limit_accel = 0.0200
+        fm.hard_limit_omega = 0.5236
+        fm.hard_limit_alpha = 0.2500
+        fm.hard_limit_vel = 0.4000
+
+        return fm
 
     def reset_control_request(self, srv):
         """
@@ -519,10 +566,12 @@ class DistributedMPC(object):
             # Create control input message
             u = self.create_control_message()
             v = self.create_broadcast_message()
+            fm = self.create_flight_mode_message()
 
             # Publish control
             self.control_pub.publish(u)
             self.broadcast_pub.publish(v)
+            self.flight_mode_pub.publish(fm)
             self.rate.sleep()
     pass
 
