@@ -1,14 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <arg name="abee" default="honey"/>
-
-    <!-- Check for right comm partner-->
-    <group if="$(eval abee == 'honey'">
-        <arg name="partner" value="bumble"/>
-    </group>
-    <group if="$(eval abee == 'bumble'">
-        <arg name="partner" value="honey"/>
-    </group>
+    <arg name="partner" default="bumble"/>
     
     <!-- Launch astrobee unit test node-->
     <group ns="$(arg abee)">

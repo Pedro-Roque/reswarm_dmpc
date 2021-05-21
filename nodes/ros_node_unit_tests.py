@@ -191,7 +191,7 @@ class UnitTestsMPC(object):
                                           geometry_msgs.msg.TwistStamped,
                                           self.twist_sub_cb)
         self.information_sub = rospy.Subscriber("~receive_information",
-                                                geometry_msgs.msg.PoseStamped,
+                                                reswarm_dmpc.msg.InformationStamped,
                                                 self.information_sub_cb)
 
         # Publishers
@@ -527,6 +527,9 @@ class UnitTestsMPC(object):
         """
 
         while not rospy.is_shutdown():
+            # Broadcast static info
+            v = self.create_broadcast_message()
+            self.broadcast_pub.publish(v)
 
             # Only do something when started
             if self.start is False:

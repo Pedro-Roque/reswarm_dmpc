@@ -2,8 +2,10 @@
 <launch>
     <include file="$(find reswarm_dmpc)/launch/unit_test_attitude.launch" >
         <arg name="abee" value="honey"/>
+        <arg name="partner" value="bumble"/>
     </include>
     <include file="$(find reswarm_dmpc)/launch/unit_test_attitude.launch" >
         <arg name="abee" value="bumble"/>
+        <arg name="partner" value="honey"/>
     </include>
 </launch>

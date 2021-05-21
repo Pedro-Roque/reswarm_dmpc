@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <group ns="honey">
-        <rosparam file="$(find reswarm_dmpc)/config/leader_iface.yaml" command="load" ns="" />
+        <rosparam file="$(find reswarm_dmpc)/config/honey/leader_iface.yaml" command="load" ns="" />
         <node pkg="reswarm_dmpc" type="ros_node_leader.py" name="leader_iface" output="screen">
             <!-- Topics -->
             <remap from="~pose_topic" to="loc/pose"/>
