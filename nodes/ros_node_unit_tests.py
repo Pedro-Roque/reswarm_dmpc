@@ -317,32 +317,32 @@ class DistributedMPC(object):
         if self.test_num == 1:
             # Translation Unit Tests:
             if t < self.test_time:
-                xd = np.array([self.test_targets['t']['1']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['t']['t1']]).reshape((self.Nx, 1))
             elif t < 2 * self.test_time:
-                xd = np.array([self.test_targets['t']['2']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['t']['t2']]).reshape((self.Nx, 1))
             elif t < 3 * self.test_time:
-                xd = np.array([self.test_targets['t']['3']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['t']['t3']]).reshape((self.Nx, 1))
             elif t < 4 * self.test_time:
-                xd = np.array([self.test_targets['t']['4']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['t']['t4']]).reshape((self.Nx, 1))
             elif t < 5 * self.test_time:
-                xd = np.array([self.test_targets['t']['5']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['t']['t5']]).reshape((self.Nx, 1))
             elif t < 6 * self.test_time:
-                xd = np.array([self.test_targets['t']['6']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['t']['t6']]).reshape((self.Nx, 1))
 
         elif self.test_num == 2:
             # Translation Unit Tests:
             if t < self.test_time:
-                xd = np.array([self.test_targets['q']['1']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['q']['t1']]).reshape((self.Nx, 1))
             elif t < 2 * self.test_time:
-                xd = np.array([self.test_targets['q']['2']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['q']['t2']]).reshape((self.Nx, 1))
             elif t < 3 * self.test_time:
-                xd = np.array([self.test_targets['q']['3']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['q']['t3']]).reshape((self.Nx, 1))
             elif t < 4 * self.test_time:
-                xd = np.array([self.test_targets['q']['4']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['q']['t4']]).reshape((self.Nx, 1))
             elif t < 5 * self.test_time:
-                xd = np.array([self.test_targets['q']['5']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['q']['t5']]).reshape((self.Nx, 1))
             elif t < 6 * self.test_time:
-                xd = np.array([self.test_targets['q']['6']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['q']['t6']]).reshape((self.Nx, 1))
         else:
             xd = np.array([self.test_targets['t']['init']]).reshape((self.Nx, 1))
 
