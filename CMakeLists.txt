@@ -3,6 +3,7 @@ project(reswarm_dmpc)
 
 set(qpoases ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers/formation/acado/qpoases)
 set(formation_src ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers/formation/acado)
+set(acado_unit_test_src ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers/setpoint/acado/acado_setpoint)
 set(acado_leader_src ${formation_src}/leader)
 set(acado_subleader_src ${formation_src}/sub_leader)
 
@@ -126,3 +127,38 @@ target_link_libraries(subleader_ctl subleader_mpc_lib ${catkin_LIBRARIES})
 # Acado MPC solver node
 add_executable(subleader_ctl_node nodes/subleader_ctl_node.cpp)
 target_link_libraries(subleader_ctl_node subleader_ctl subleader_mpc_lib )
+
+### UNIT TEST MPC SECTION
+# 
+# Create the MPC solver library
+add_library(unittest_lib
+  ${qpoases}/SRC/Bounds.cpp
+  ${qpoases}/SRC/Constraints.cpp
+  ${qpoases}/SRC/CyclingManager.cpp
+  ${qpoases}/SRC/Indexlist.cpp
+  ${qpoases}/SRC/MessageHandling.cpp
+  ${qpoases}/SRC/QProblem.cpp
+  ${qpoases}/SRC/QProblemB.cpp
+  ${qpoases}/SRC/SubjectTo.cpp
+  ${qpoases}/SRC/Utils.cpp
+  ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${acado_unit_test_src}/acado_qpoases_interface.cpp
+  ${acado_unit_test_src}/acado_integrator.c
+  ${acado_unit_test_src}/acado_solver.c
+  ${acado_unit_test_src}/acado_auxiliary_functions.c
+)
+
+target_include_directories(unittest_lib PUBLIC 
+  ${acado_unit_test_src}/
+  ${qpoases}
+  ${qpoases}/INCLUDE
+  ${qpoases}/SRC 
+)
+
+# Acado MPC solver interface for leader
+add_library(unit_test_ctl ${formation_src}/acado_wrapper.cpp)
+target_link_libraries(unit_test_ctl unittest_lib ${catkin_LIBRARIES})
+
+# Acado MPC solver node
+add_executable(unittest_ctl_node nodes/unittest_ctl_node.cpp)
+target_link_libraries(unittest_ctl_node unit_test_ctl unittest_lib )

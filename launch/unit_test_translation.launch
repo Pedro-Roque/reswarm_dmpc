@@ -1,16 +1,25 @@
 <?xml version="1.0"?>
 <launch>
-    <group ns="bumble">
-        <rosparam file="$(find reswarm_dmpc)/config/bumble/subleader_iface.yaml" command="load" ns="" />
-        <node pkg="reswarm_dmpc" type="ros_node_subleader.py" name="subleader_iface" output="screen">
+    <arg name="abee" default="honey"/>
+
+    <!-- Check for right comm partner-->
+    <group if="$(eval abee == 'honey'">
+        <arg name="partner" value="bumble"/>
+    </group>
+    <group if="$(eval abee == 'bumble'">
+        <arg name="partner" value="honey"/>
+    </group>
+    
+    <!-- Launch astrobee unit test node-->
+    <group ns="$(arg abee)">
+        <rosparam file="$(find reswarm_dmpc)/config/$(arg abee)/test_translation.yaml" command="load" ns="" />
+        <node pkg="reswarm_dmpc" type="ros_node_unit_tests.py" name="$(arg abee)_unittest_py" output="screen">
             <!-- Topics -->
             <remap from="~pose_topic" to="loc/pose"/>
             <remap from="~twist_topic" to="loc/twist"/>
-            <remap from="~local_leader_pose" to="/honey/loc/pose"/>
-            <remap from="~follower_pose" to="/queen/loc/pose"/>
-            <remap from="~leader_information" to="/honey/information"/>
             <remap from="~control_topic" to="gnc/ctl/command"/>
             <remap from="~broadcast_information" to="information"/>
+            <remap from="~receive_information" to="/$(arg partner)/information"/>
             <remap from="~flight_mode" to="mob/flight_mode"/>
             <!-- Services -->
             <remap from="~get_control_srv" to="get_control"/>
@@ -19,9 +28,9 @@
             <remap from="~pmc_timeout_srv" to="hw/pmc/set_timeout"/>
             <remap from="~start_srv" to="start"/>
         </node>
-        <node pkg="reswarm_dmpc" type="subleader_ctl_node" name="subleader_ctl_node">  
+        <node pkg="reswarm_dmpc" type="unittest_ctl_node" name="$(arg abee)_unittest_ctl" output="log">
             <remap from="get_control_srv" to="get_control"/>
             <remap from="set_weights_srv" to="set_weights"/>
-        </node>
+        </node>    
     </group>
 </launch>

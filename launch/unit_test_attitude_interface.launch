@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <include file="$(find reswarm_dmpc)/launch/unit_test_attitude.launch" >
+        <arg name="abee" value="honey"/>
+    </include>
+    <include file="$(find reswarm_dmpc)/launch/unit_test_attitude.launch" >
+        <arg name="abee" value="bumble"/>
+    </include>
+</launch>
