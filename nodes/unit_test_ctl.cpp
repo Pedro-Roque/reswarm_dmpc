@@ -13,11 +13,11 @@ ROS Service interface.
 int main(int argc, char **argv)
 {
 
-  ros::init(argc, argv, "unit_test_1");
+  ros::init(argc, argv, "unit_test");
   ros::NodeHandle nh("");
 
   // Instantiate controller class
-  AcadoMPC unit_test_1(nh);
+  AcadoMPC unit_test(nh);
 
   ros::spin();
 
