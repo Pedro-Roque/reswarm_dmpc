@@ -43,11 +43,6 @@ class UnitTestsMPC(object):
         self.test_time = rospy.get_param("unit_test_time")
         self.test_targets = rospy.get_param("targets")
 
-        # Print params:
-        if DEBUG:
-            print("RG Start: ", self.rg_start)
-            print("Bearings: ", self.bearings)
-
         # Data timestamps and validity threshold
         self.ts_threshold = 1.0
         self.pose_ts = 0.0
@@ -244,21 +239,24 @@ class UnitTestsMPC(object):
 
         srv = reswarm_dmpc.srv.SetWeightsRequest()
 
-        self.weights_size = 3 + 3 + 3 * 1 + 6
-        self.weights_size_N = 3 + 3 + 3 * 1
-        rpos_weights = np.ones((3 * 1,)) * 0.05
+        self.weights_size = 3 + 3 + 3 + 3 + 6
+        self.weights_size_N = 3 + 3 + 3 + 3
+        pos_weights = np.ones((3,)) * 100
         verr_weights = np.ones((3,)) * 10
-        att_weights = np.ones((3,)) * 10
+        att_weights = np.ones((3,)) * 30
+        werr_weights = np.ones((3,)) * 100
         control_weights = np.array([5, 5, 5, 1, 1, 1]) * 10
 
-        self.ln_weights = np.concatenate((rpos_weights,
+        self.ln_weights = np.concatenate((pos_weights,
                                           verr_weights,
                                           att_weights,
+                                          werr_weights,
                                           control_weights), axis=0)
 
-        self.V_weights = np.concatenate((rpos_weights,
+        self.V_weights = np.concatenate((pos_weights,
                                          verr_weights,
-                                         att_weights), axis=0) * 200
+                                         att_weights,
+                                         werr_weights), axis=0) * 200
 
         srv.W = np.diag(self.ln_weights).ravel(order="F").tolist()
         srv.WN = np.diag(self.V_weights).ravel(order="F").tolist()
@@ -326,6 +324,8 @@ class UnitTestsMPC(object):
                 xd = np.array([self.test_targets['t']['t5']]).reshape((self.Nx, 1))
             elif t < 6 * self.test_time:
                 xd = np.array([self.test_targets['t']['t6']]).reshape((self.Nx, 1))
+            else:
+                xd = np.array([self.test_targets['t']['t6']]).reshape((self.Nx, 1))
 
         elif self.test_num == 2:
             # Translation Unit Tests:
@@ -341,8 +341,8 @@ class UnitTestsMPC(object):
                 xd = np.array([self.test_targets['q']['t5']]).reshape((self.Nx, 1))
             elif t < 6 * self.test_time:
                 xd = np.array([self.test_targets['q']['t6']]).reshape((self.Nx, 1))
-        else:
-            xd = np.array([self.test_targets['t']['init']]).reshape((self.Nx, 1))
+            else:
+                xd = np.array([self.test_targets['q']['t6']]).reshape((self.Nx, 1))
 
         return xd
 
