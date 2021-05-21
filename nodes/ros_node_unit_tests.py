@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 import numpy as np
 from numpy.core.numeric import Inf
-import scipy
 import rospy
 
-from reswarm_dmpc.reference_generation.sinusoidal import SinusoidalReference
 from reswarm_dmpc.util import *
 
 import geometry_msgs.msg
@@ -18,7 +16,7 @@ DEBUG = False
 OVERRIDE_TS = False
 
 
-class DistributedMPC(object):
+class UnitTestsMPC(object):
     """
     Class implementing the unit tests for Acado NMPC
     on the NASA Astrobees.
@@ -588,6 +586,6 @@ class DistributedMPC(object):
 
 if __name__ == "__main__":
     rospy.init_node("leader_dmpc")
-    dmpc = DistributedMPC()
+    dmpc = UnitTestsMPC()
     rospy.spin()
     pass
