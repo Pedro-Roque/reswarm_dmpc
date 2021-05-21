@@ -20,7 +20,7 @@ OVERRIDE_TS = False
 
 class DistributedMPC(object):
     """
-    Class implementing the distributed formation control MPC
+    Class implementing the unit tests for Acado NMPC
     on the NASA Astrobees.
     """
 
@@ -41,11 +41,9 @@ class DistributedMPC(object):
         self.pose = None
 
         # Collect parameters
-        rg_start = rospy.get_param("traj_start")
-        self.rg_start = np.array([rg_start]).reshape((3, 1))
-        bearings = rospy.get_param("bearings")
-        self.bearings = np.array([bearings['f1']]).reshape((3, 1))
-        self.qd = np.array([0, 0, -0.707, 0.707]).reshape((4, 1))
+        self.test_num = rospy.get_param("test_num")
+        self.test_time = rospy.get_param("unit_test_time")
+        self.test_targets = rospy.get_param("targets")
 
         # Print params:
         if DEBUG:
@@ -56,11 +54,11 @@ class DistributedMPC(object):
         self.ts_threshold = 1.0
         self.pose_ts = 0.0
         self.twist_ts = 0.0
-        self.f1_position_ts = 0.0
+        self.info_ts = 0.0
 
         # MPC data
         self.N = 10
-        self.Nx = 3 + 3 + 4 + 3 + 3 * 1
+        self.Nx = 13
         self.Nu = 6
         self.x_traj = None
         self.u_traj = None
@@ -129,19 +127,21 @@ class DistributedMPC(object):
         self.state[10:13] = self.twist[3:6]
         return
 
-    def f1_pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
+    def information_sub_cb(self, msg=reswarm_dmpc.msg.InformationStamped()):
         """
-        Follower 1 position callback (for further simulation of a rel. pos.
-        sensor)
+        Receive information from another Astrobee.
 
-        :param msg: follower 1 position
-        :type msg: geometry_msgs.msg.PoseStamped
+        :param msg: received data, defaults to reswarm_dmpc.msg.InformationStamped()
+        :type msg: InformationStamped, optional
         """
 
-        self.f1_position_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
-        self.f1_position = np.array([[msg.pose.position.x,
-                                      msg.pose.position.y,
-                                      msg.pose.position.z]]).T
+        self.info_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.info_lv = np.array([[msg.leader_velocity.linear.x,
+                                  msg.leader_velocity.linear.y,
+                                  msg.leader_velocity.linear.z]]).T
+        self.info_lt = np.array([[msg.leader_target.linear.x,
+                                  msg.leader_target.linear.y,
+                                  msg.leader_target.linear.z]]).T
         return
 
     def start_srv_callback(self, req=std_srvs.srv.SetBoolRequest()):
@@ -159,8 +159,6 @@ class DistributedMPC(object):
             ans.success = True
             ans.message = "Node started!"
             # Create reference:
-            self.rg = SinusoidalReference(self.dt, self.rg_start, A=0.1,
-                                          time_span=45)
             self.t0 = rospy.get_time()
             # Disable onboard controller
             obc = std_srvs.srv.SetBoolRequest()
@@ -194,9 +192,9 @@ class DistributedMPC(object):
         self.twist_sub = rospy.Subscriber("~twist_topic",
                                           geometry_msgs.msg.TwistStamped,
                                           self.twist_sub_cb)
-        self.f1_sub = rospy.Subscriber("~follower_pose",
-                                       geometry_msgs.msg.PoseStamped,
-                                       self.f1_pose_sub_cb)
+        self.information_sub = rospy.Subscriber("~receive_information",
+                                                geometry_msgs.msg.PoseStamped,
+                                                self.information_sub_cb)
 
         # Publishers
         self.control_pub = rospy.Publisher("~control_topic",
@@ -295,7 +293,7 @@ class DistributedMPC(object):
             pos_val = True
         if rospy.get_time() - self.twist_ts < self.ts_threshold or OVERRIDE_TS:
             vel_val = True
-        if rospy.get_time() - self.f1_position_ts < self.ts_threshold or OVERRIDE_TS:
+        if rospy.get_time() - self.info_ts < self.ts_threshold or OVERRIDE_TS:
             rel_val = True
 
         # Check weights validity
@@ -306,17 +304,49 @@ class DistributedMPC(object):
 
         return pos_val and vel_val and rel_val
 
-    def get_relative_pos(self):
+    def get_setpoint(self, t):
         """
-        Helper function to return the relative position of the neighbours.
+        Collects setpoints from the yaml files for attitude and position unit tests.
 
-        :return: relative position to follower 1
+        :param t: test time
+        :type t: float
+        :return: target setpoint
         :rtype: np.ndarray
         """
 
-        rmat = r_mat_np(self.state[6:10])
-        rel_pos = np.dot(rmat, self.state[0:3] - self.f1_position)
-        return rel_pos
+        if self.test_num == 1:
+            # Translation Unit Tests:
+            if t < self.test_time:
+                xd = np.array([self.test_targets['t']['1']]).reshape((self.Nx, 1))
+            elif t < 2 * self.test_time:
+                xd = np.array([self.test_targets['t']['2']]).reshape((self.Nx, 1))
+            elif t < 3 * self.test_time:
+                xd = np.array([self.test_targets['t']['3']]).reshape((self.Nx, 1))
+            elif t < 4 * self.test_time:
+                xd = np.array([self.test_targets['t']['4']]).reshape((self.Nx, 1))
+            elif t < 5 * self.test_time:
+                xd = np.array([self.test_targets['t']['5']]).reshape((self.Nx, 1))
+            elif t < 6 * self.test_time:
+                xd = np.array([self.test_targets['t']['6']]).reshape((self.Nx, 1))
+
+        elif self.test_num == 2:
+            # Translation Unit Tests:
+            if t < self.test_time:
+                xd = np.array([self.test_targets['q']['1']]).reshape((self.Nx, 1))
+            elif t < 2 * self.test_time:
+                xd = np.array([self.test_targets['q']['2']]).reshape((self.Nx, 1))
+            elif t < 3 * self.test_time:
+                xd = np.array([self.test_targets['q']['3']]).reshape((self.Nx, 1))
+            elif t < 4 * self.test_time:
+                xd = np.array([self.test_targets['q']['4']]).reshape((self.Nx, 1))
+            elif t < 5 * self.test_time:
+                xd = np.array([self.test_targets['q']['5']]).reshape((self.Nx, 1))
+            elif t < 6 * self.test_time:
+                xd = np.array([self.test_targets['q']['6']]).reshape((self.Nx, 1))
+        else:
+            xd = np.array([self.test_targets['t']['init']]).reshape((self.Nx, 1))
+
+        return xd
 
     def prepare_request(self, t):
         """
@@ -334,29 +364,19 @@ class DistributedMPC(object):
             return val, 0
 
         # Valid data, so we proceed
-        self.target_vel = self.rg.get_vel_trajectory_at_t(t, self.N + 1)
-        rel_pos = self.get_relative_pos()
-        self.x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13 + 3, 1))
+        setpoint = self.get_setpoint(t)
+        self.x0 = self.state.reshape((13, 1))
         if self.x_traj is None:
             self.x_traj = np.repeat(self.x0, self.N + 1, axis=1)
 
         if self.u_traj is None:
             self.u_traj = np.repeat(np.zeros((1, 6)), self.N, axis=0)
 
-        online_data = np.repeat(self.bearings, self.N + 1, axis=1)
-        qd_rep = np.repeat(self.qd, self.N + 1, axis=1)
-        if DEBUG:
-            print("Bearings repeated shape: ", online_data.shape)
-            print("Velocity shape: ", self.target_vel.shape)
-
-        self.online_data = np.concatenate((online_data, qd_rep, self.target_vel), axis=0)
+        self.online_data = np.repeat(setpoint, self.N + 1, axis=1)
 
         if DEBUG:
             print("Target Velocity: ", self.target_vel.shape)
-            print("Neighour position: ", rel_pos.shape)
             print("State dims: ", self.state.shape)
-            print("rel_pos dims: ", rel_pos.shape)
-            print("Bearings dims: ", self.bearings.shape)
             print("X0 data: ", self.x0.ravel(order="F").tolist())
             print("X data: ", self.x_traj.ravel(order="F").tolist())
             print("U data: ", self.u_traj.ravel(order="F").tolist())
@@ -423,13 +443,13 @@ class DistributedMPC(object):
         v.header.stamp = rospy.Time.now()
 
         # Fill information fields
-        v.leader_velocity.linear.x = self.state[3]
-        v.leader_velocity.linear.y = self.state[4]
-        v.leader_velocity.linear.z = self.state[5]
+        v.leader_velocity.linear.x = 1
+        v.leader_velocity.linear.y = 2
+        v.leader_velocity.linear.z = 3
 
-        v.leader_target.linear.x = self.target_vel[0, 0]
-        v.leader_target.linear.y = self.target_vel[1, 0]
-        v.leader_target.linear.z = self.target_vel[2, 0]
+        v.leader_target.linear.x = 4
+        v.leader_target.linear.y = 5
+        v.leader_target.linear.z = 6
 
         return v
 
@@ -477,7 +497,7 @@ class DistributedMPC(object):
         :return: resetted solver request
         :rtype: reswarm_dmpc.srv.GetControlRequest
         """
-        self.x0[-3:] = self.x0[-3:] + 1e-9 * np.ones((3, 1))
+
         self.x_traj = np.repeat(self.x0, self.N + 1, axis=1)
         self.u_traj = np.repeat(np.zeros((1, 6)), self.N, axis=0)
 
