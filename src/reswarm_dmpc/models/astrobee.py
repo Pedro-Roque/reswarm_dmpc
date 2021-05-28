@@ -31,7 +31,7 @@ class Astrobee(object):
         self.nonlinear_model = self.astrobee_dynamics
         self.model = None
         self.n = 13
-        self.m = 9.0
+        self.m = 6
         self.dt = h
 
         # Model prperties
