@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <include file="$(find astrobee)/launch/sim.launch" >
-        <arg name="dds" value="false"/>
+        <arg name="dds" value="true"/>
         <arg name="rviz" value="true"/>
         <arg name="default" value="false"/>
     </include>

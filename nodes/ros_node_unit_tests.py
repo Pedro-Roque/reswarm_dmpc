@@ -27,8 +27,8 @@ class UnitTestsMPC(object):
         Initialize Distributed MPC Class
         """
 
-        self.dt = 1
-        self.rate = rospy.Rate(5)
+        self.dt = 0.5
+        self.rate = rospy.Rate(1.0 / self.dt)
         self.start = False
         self.state = np.zeros((13, 1))
         self.state[9] = 1

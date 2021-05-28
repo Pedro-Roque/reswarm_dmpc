@@ -13,7 +13,7 @@ import reswarm_dmpc.msg
 import ff_msgs.msg
 import ff_msgs.srv
 
-DEBUG = False
+DEBUG = True
 OVERRIDE_TS = False
 AGENTS = 2
 
@@ -353,17 +353,19 @@ class DistributedMPC(object):
         :return: relative position to leader and follower 1
         :rtype: np.ndarray, np.ndarray
         """
-        rmat = r_mat_np(self.state[6:10])
-        rel_pos_l = np.dot(rmat, self.state[0:3] - self.l_position)
+        rmat = r_mat_np(self.state[6:10])  # get local to global matrix
+        rel_pos_l = np.dot(rmat.T, self.l_position - self.state[0:3])
         if AGENTS == 2:
             rel_pos_f1 = self.bearings[3:].reshape(3, 1)
             rel_pos_f1 = rel_pos_f1 + np.array([[1e-9, 1e-9, 1e-9]]).T  # Add noise to avoid singular point
             if DEBUG:
+                print("Rel Leader: ", rel_pos_l)
                 print("Rel F1: ", rel_pos_f1)
                 print("Rel F1 shape: ", rel_pos_f1.shape)
         else:
-            rel_pos_f1 = np.dot(rmat, self.state[0:3] - self.f1_position)
+            rel_pos_f1 = np.dot(rmat.T, self.f1_position - self.state[0:3])
             if DEBUG:
+                print("Rel Leader: ", rel_pos_l)
                 print("Rel F1: ", rel_pos_f1)
                 print("Rel F1 shape: ", rel_pos_f1.shape)
         return rel_pos_l, rel_pos_f1

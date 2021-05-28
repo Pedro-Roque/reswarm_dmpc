@@ -24,7 +24,8 @@ OnlineData pD(3) vD(3) qD(4) wD(3)
 
 Control u1(6)                                            
 
-%% Functions         
+%% Functions   
+% This rotation transforms Local to Global
 Rq = @(q)   [1 - 2*q(2)^2 - 2*q(3)^2,	2*q(1)*q(2) - 2*q(3)*q(4),	2*q(1)*q(3) + 2*q(2)*q(4); ...
              2*q(1)*q(2) + 2*q(3)*q(4),	1 - 2*q(1)^2 - 2*q(3)^2,	2*q(2)*q(3) - 2*q(1)*q(4); ...
              2*q(1)*q(3) - 2*q(2)*q(4),	2*q(2)*q(3) + 2*q(1)*q(4),	1 - 2*q(1)^2 - 2*q(2)^2];
