@@ -4,5 +4,6 @@
         <arg name="dds" value="true"/>
         <arg name="rviz" value="true"/>
         <arg name="default" value="false"/>
+        <arg name="queen" value="false"/>
     </include>
 </launch>
