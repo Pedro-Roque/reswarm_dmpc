@@ -31,7 +31,7 @@ class Astrobee(object):
         self.nonlinear_model = self.astrobee_dynamics
         self.model = None
         self.n = 13
-        self.m = 6
+        self.m = 9.0
         self.dt = h
 
         # Model prperties
@@ -139,9 +139,9 @@ class Astrobee(object):
             rposD = ca.MX.sym('rposD', 3, 1)
             next_follower_rpos = self.follower_dynamics(v, rpos0, rposD)
             self.next_follower_rpos = ca.Function('FollowerRPos',
-                                        [v, rpos0, rposD],
-                                        [next_follower_rpos],
-                                        self.fun_options)
+                                                  [v, rpos0, rposD],
+                                                  [next_follower_rpos],
+                                                  self.fun_options)
 
     def set_local_leader_dynamics(self):
         """
@@ -176,9 +176,9 @@ class Astrobee(object):
         eps = 0.001  # Epsilon for zero singularity
 
         e_rpos = rposD - rpos
-        e_vf = vmax*(1.0 - ca.exp(-alpha*ca.norm_2(e_rpos)))
+        e_vf = vmax * (1.0 - ca.exp(-alpha * ca.norm_2(e_rpos)))
         # next_rpos = (e_rpos)/(ca.norm_2(e_rpos)+eps)*(e_vf - ca.norm_2(v))
-        next_rpos = rpos + ((e_rpos)/(ca.norm_2(e_rpos)+eps))*(e_vf - ca.norm_2(v))
+        next_rpos = rpos + ((e_rpos) / (ca.norm_2(e_rpos) + eps)) * (e_vf - ca.norm_2(v))
 
         return next_rpos
 
@@ -225,8 +225,8 @@ class Astrobee(object):
 
         # Model
         pdot = v
-        vdot = ca.mtimes(r_mat(q), f)/self.mass
-        qdot = ca.mtimes(self.xi_mat(q), w)/2
+        vdot = ca.mtimes(r_mat(q), f) / self.mass
+        qdot = ca.mtimes(self.xi_mat(q), w) / 2
         wdot = ca.mtimes(ca.inv(self.inertia), tau + ca.mtimes(skew(w),
                          ca.mtimes(self.inertia, w)))
 
@@ -240,7 +240,7 @@ class Astrobee(object):
         """
         if self.solver != 'acados':
             next_state = self.model(state, input)  # state after self.dt
-            next_state[6:10] = next_state[6:10]/ca.norm_2(next_state[6:10])
+            next_state[6:10] = next_state[6:10] / ca.norm_2(next_state[6:10])
             return np.asarray(next_state)
 
     def test_rel_pos_dynamics(self):
