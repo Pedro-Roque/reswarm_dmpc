@@ -5,7 +5,6 @@ from __future__ import print_function
 import numpy as np
 import casadi as ca
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 
 class EmbeddedSimEnvironment(object):
@@ -45,7 +44,7 @@ class EmbeddedSimEnvironment(object):
         """
 
         print("Running simulation....")
-        sim_loop_length = int(self.total_sim_time/self.dt) + 1  # account for 0
+        sim_loop_length = int(self.total_sim_time / self.dt) + 1  # account for 0
         t = np.array([0])
         y_vec = np.array([x0]).T
         ref_vec = np.array([x0]).T
@@ -72,7 +71,7 @@ class EmbeddedSimEnvironment(object):
             x = np.array([y_vec[:, -1]]).T
 
             # Get control input and obtain next state
-            u, ref, pred_x, pred_ref = self.controller(x, i*self.dt)
+            u, ref, pred_x, pred_ref = self.controller(x, i * self.dt)
             if self.noise is not None:
                 noise_p = np.random.uniform(-self.noise["pos"], self.noise["pos"], (3, 1))
                 noise_v = np.random.uniform(-self.noise["vel"], self.noise["vel"], (3, 1))
@@ -82,8 +81,8 @@ class EmbeddedSimEnvironment(object):
             else:
                 noise_vec = np.zeros((13, 1))
             x_next = self.dynamics(x, u) + noise_vec
-            x_next[6:10] = x_next[6:10]/np.linalg.norm(x_next[6:10])
-            
+            x_next[6:10] = x_next[6:10] / np.linalg.norm(x_next[6:10])
+
             # Get data to log
             u = np.asarray(u).reshape(6, 1)
             hp, hq = self.model.get_barrier_value(x.reshape(13, 1),
@@ -92,7 +91,7 @@ class EmbeddedSimEnvironment(object):
             slv_time = np.append(slv_time,
                                  self.ctl_class.get_last_solve_time())
             ref_vec = np.append(ref_vec, np.array([ref]).T, axis=1)
-            hp_hq_vec = np.append(hp_hq_vec, np.array([[hp, hq]]).reshape(2,1), axis=1)
+            hp_hq_vec = np.append(hp_hq_vec, np.array([[hp, hq]]).reshape(2, 1), axis=1)
             if i == 0:
                 ref_vec = np.delete(ref_vec, 0, axis=1)
                 hp_hq_vec = np.delete(hp_hq_vec, 0, axis=1)
@@ -101,8 +100,8 @@ class EmbeddedSimEnvironment(object):
             if self.plot is True:
                 # Get plot window values:
                 if self.plt_window != float("inf"):
-                    l_wnd = 0 if int(i+1 - self.plt_window/self.dt) < 1 \
-                            else int(i + 1 - self.plt_window/self.dt)
+                    l_wnd = 0 if int(i + 1 - self.plt_window / self.dt) < 1 \
+                        else int(i + 1 - self.plt_window / self.dt)
                 else:
                     l_wnd = 0
 
@@ -141,17 +140,17 @@ class EmbeddedSimEnvironment(object):
                 # Plot state info
                 ax1.clear()
                 ax1.set_title("Astrobee Testing")
-                ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1]-ref_vec[0, l_wnd:-1],
-                         t[l_wnd:-1], y_vec[1, l_wnd:-1]-ref_vec[1, l_wnd:-1],
-                         t[l_wnd:-1], y_vec[2, l_wnd:-1]-ref_vec[2, l_wnd:-1])
+                ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1] - ref_vec[0, l_wnd:-1],
+                         t[l_wnd:-1], y_vec[1, l_wnd:-1] - ref_vec[1, l_wnd:-1],
+                         t[l_wnd:-1], y_vec[2, l_wnd:-1] - ref_vec[2, l_wnd:-1])
                 ax1.legend(["e-x", "e-y", "e-z"])
                 ax1.set_ylabel("Error [m]")
                 ax1.grid()
 
                 ax2.clear()
-                ax2.plot(t[l_wnd:-1], y_vec[3, l_wnd:-1]-ref_vec[3, l_wnd:-1],
-                         t[l_wnd:-1], y_vec[4, l_wnd:-1]-ref_vec[4, l_wnd:-1],
-                         t[l_wnd:-1], y_vec[5, l_wnd:-1]-ref_vec[5, l_wnd:-1])
+                ax2.plot(t[l_wnd:-1], y_vec[3, l_wnd:-1] - ref_vec[3, l_wnd:-1],
+                         t[l_wnd:-1], y_vec[4, l_wnd:-1] - ref_vec[4, l_wnd:-1],
+                         t[l_wnd:-1], y_vec[5, l_wnd:-1] - ref_vec[5, l_wnd:-1])
                 ax2.legend(["e-vx", "e-vy", "e-vz"])
                 ax2.set_ylabel("Error [m/s]")
                 ax2.grid()
@@ -191,7 +190,7 @@ class EmbeddedSimEnvironment(object):
                 plt.pause(0.001)
 
             # Store data
-            t = np.append(t, i*self.dt)
+            t = np.append(t, i * self.dt)
             y_vec = np.append(y_vec, np.array(x_next), axis=1)
             u_vec = np.append(u_vec, np.array(u), axis=1)
 

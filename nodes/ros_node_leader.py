@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import numpy as np
 from numpy.core.numeric import Inf
-import scipy
 import rospy
 
 from reswarm_dmpc.reference_generation.sinusoidal import SinusoidalReference

@@ -1,6 +1,5 @@
 #!py
 import unittest
-from matplotlib.pyplot import xcorr
 import numpy as np
 from reswarm_dmpc.models.astrobee import Astrobee
 

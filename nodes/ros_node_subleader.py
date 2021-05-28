@@ -3,7 +3,6 @@ import numpy as np
 from numpy.core.numeric import Inf
 import rospy
 
-from reswarm_dmpc.reference_generation.sinusoidal import SinusoidalReference
 from reswarm_dmpc.util import *
 
 import geometry_msgs.msg
@@ -13,7 +12,7 @@ import reswarm_dmpc.msg
 import ff_msgs.msg
 import ff_msgs.srv
 
-DEBUG = True
+DEBUG = False
 OVERRIDE_TS = False
 AGENTS = 2
 

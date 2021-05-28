@@ -6,13 +6,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import time
+import math
 import numpy as np
 import casadi as ca
-import casadi.tools as ctools
-
-from scipy.stats import norm
-import scipy.linalg
 
 
 def r_mat(q):
@@ -33,17 +29,17 @@ def r_mat(q):
     qz = q[2]
     qw = q[3]
 
-    Rmat[0, 0] = 1 - 2*qy**2 - 2*qz**2
-    Rmat[0, 1] = 2*qx*qy - 2*qz*qw
-    Rmat[0, 2] = 2*qx*qz + 2*qy*qw
+    Rmat[0, 0] = 1 - 2 * qy**2 - 2 * qz**2
+    Rmat[0, 1] = 2 * qx * qy - 2 * qz * qw
+    Rmat[0, 2] = 2 * qx * qz + 2 * qy * qw
 
-    Rmat[1, 0] = 2*qx*qy + 2*qz*qw
-    Rmat[1, 1] = 1 - 2*qx**2 - 2*qz**2
-    Rmat[1, 2] = 2*qy*qz - 2*qx*qw
+    Rmat[1, 0] = 2 * qx * qy + 2 * qz * qw
+    Rmat[1, 1] = 1 - 2 * qx**2 - 2 * qz**2
+    Rmat[1, 2] = 2 * qy * qz - 2 * qx * qw
 
-    Rmat[2, 0] = 2*qx*qz - 2*qy*qw
-    Rmat[2, 1] = 2*qy*qz + 2*qx*qw
-    Rmat[2, 2] = 1 - 2*qx**2 - 2*qy**2
+    Rmat[2, 0] = 2 * qx * qz - 2 * qy * qw
+    Rmat[2, 1] = 2 * qy * qz + 2 * qx * qw
+    Rmat[2, 2] = 1 - 2 * qx**2 - 2 * qy**2
 
     return Rmat
 
@@ -112,17 +108,17 @@ def r_mat_np(q):
     qz = q[2]
     qw = q[3]
 
-    Rmat[0, 0] = 1 - 2*qy**2 - 2*qz**2
-    Rmat[0, 1] = 2*qx*qy - 2*qz*qw
-    Rmat[0, 2] = 2*qx*qz + 2*qy*qw
+    Rmat[0, 0] = 1 - 2 * qy**2 - 2 * qz**2
+    Rmat[0, 1] = 2 * qx * qy - 2 * qz * qw
+    Rmat[0, 2] = 2 * qx * qz + 2 * qy * qw
 
-    Rmat[1, 0] = 2*qx*qy + 2*qz*qw
-    Rmat[1, 1] = 1 - 2*qx**2 - 2*qz**2
-    Rmat[1, 2] = 2*qy*qz - 2*qx*qw
+    Rmat[1, 0] = 2 * qx * qy + 2 * qz * qw
+    Rmat[1, 1] = 1 - 2 * qx**2 - 2 * qz**2
+    Rmat[1, 2] = 2 * qy * qz - 2 * qx * qw
 
-    Rmat[2, 0] = 2*qx*qz - 2*qy*qw
-    Rmat[2, 1] = 2*qy*qz + 2*qx*qw
-    Rmat[2, 2] = 1 - 2*qx**2 - 2*qy**2
+    Rmat[2, 0] = 2 * qx * qz - 2 * qy * qw
+    Rmat[2, 1] = 2 * qy * qz + 2 * qx * qw
+    Rmat[2, 2] = 1 - 2 * qx**2 - 2 * qy**2
 
     return Rmat
 

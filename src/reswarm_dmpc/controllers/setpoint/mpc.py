@@ -11,8 +11,6 @@ import time
 import numpy as np
 import casadi as ca
 import casadi.tools as ctools
-from scipy.stats import norm
-import scipy.linalg
 
 from reswarm_dmpc.util import *
 
@@ -84,10 +82,9 @@ class MPC(object):
         param_s = ca.vertcat(x0, x0_ref, u0)
 
         # Create optimization variables
-        opt_var = ctools.struct_symMX([(
-                ctools.entry('u', shape=(self.Nu,), repeat=self.Nt),
-                ctools.entry('x', shape=(self.Nx,), repeat=self.Nt+1),
-        )])
+        opt_var = ctools.struct_symMX([(ctools.entry('u', shape=(self.Nu,), repeat=self.Nt),
+                                        ctools.entry('x', shape=(self.Nx,), repeat=self.Nt + 1),
+                                        )])
         self.opt_var = opt_var
         self.num_var = opt_var.size
 
@@ -111,7 +108,7 @@ class MPC(object):
 
             # Dynamics constraint
             x_t_next = self.dynamics(x_t, u_t)
-            con_eq.append(x_t_next - opt_var['x', t+1])
+            con_eq.append(x_t_next - opt_var['x', t + 1])
 
             # Input constraints
             if uub is not None:
@@ -153,7 +150,7 @@ class MPC(object):
         con_eq_ub = np.zeros((num_eq_con, 1))
 
         # Set constraints
-        con = ca.vertcat(*(con_eq+con_ineq))
+        con = ca.vertcat(*(con_eq + con_ineq))
         self.con_lb = ca.vertcat(con_eq_lb, *con_ineq_lb)
         self.con_ub = ca.vertcat(con_eq_ub, *con_ineq_ub)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
@@ -236,8 +233,8 @@ class MPC(object):
         """
 
         # Create functions and function variables for calculating the cost
-        Q = ca.MX.sym('Q', self.Nx-1, self.Nx-1)
-        P = ca.MX.sym('P', self.Nx-1, self.Nx-1)
+        Q = ca.MX.sym('Q', self.Nx - 1, self.Nx - 1)
+        P = ca.MX.sym('P', self.Nx - 1, self.Nx - 1)
         R = ca.MX.sym('R', self.Nu, self.Nu)
 
         x = ca.MX.sym('x', self.Nx)
@@ -259,8 +256,8 @@ class MPC(object):
         ep = p - pr
         ev = v - vr
         ew = w - wr
-        eq = 0.5*inv_skew(ca.mtimes(r_mat(qr).T, r_mat(q))
-                          - ca.mtimes(r_mat(q).T, r_mat(qr)))
+        eq = 0.5 * inv_skew(ca.mtimes(r_mat(qr).T, r_mat(q))
+                            - ca.mtimes(r_mat(q).T, r_mat(qr)))
 
         e_vec = ca.vertcat(*[ep, ev, eq, ew])
 

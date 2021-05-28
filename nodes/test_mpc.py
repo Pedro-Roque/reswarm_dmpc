@@ -23,8 +23,8 @@ class ControllerStabilizationTest(unittest.TestCase):
 
         # Instantiate controller
         Q = np.diag([10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100])
-        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])*10
-        P = Q*100
+        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5]) * 10
+        P = Q * 100
 
         ctl = MPC(model=abee,
                   dynamics=abee.model,
@@ -60,8 +60,8 @@ class ControllerStabilizationTest(unittest.TestCase):
 
         # Instantiate controller
         Q = np.diag([10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100])
-        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])*10
-        P = Q*100
+        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5]) * 10
+        P = Q * 100
 
         ctl = MPC(model=abee,
                   dynamics=abee.model,
@@ -93,8 +93,8 @@ class ControllerStabilizationTest(unittest.TestCase):
 
         # Instantiate controller
         Q = np.diag([10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100])
-        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])*10
-        P = Q*100
+        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5]) * 10
+        P = Q * 100
 
         ctl = MPC(model=abee,
                   dynamics=abee.model,
@@ -129,8 +129,8 @@ class ControllerStabilizationTest(unittest.TestCase):
 
         # Instantiate controller
         Q = np.diag([10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100])
-        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])*10
-        P = Q*100
+        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5]) * 10
+        P = Q * 100
 
         ctl = MPC(model=abee,
                   dynamics=abee.model,
@@ -166,8 +166,8 @@ class ControllerStabilizationTest(unittest.TestCase):
 
         # Instantiate controller
         Q = np.diag([100, 100, 100, 10, 10, 10, 10, 10, 10, 100, 100, 100])
-        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5])*10
-        P = Q*100
+        R = np.diag([1, 1, 1, 0.5, 0.5, 0.5]) * 10
+        P = Q * 100
 
         ctl = MPC(model=abee,
                   dynamics=abee.model,

@@ -9,7 +9,6 @@ from __future__ import print_function
 
 import time
 import numpy as np
-import numpy.matlib as nmp
 import casadi as ca
 import casadi.tools as ctools
 
@@ -86,7 +85,7 @@ class DecentralizedFormationMPC(object):
         if hasattr(model, 'role'):
             self.role = self.model.role
             self.num_neighbours = self.model.num_neighbours
-            self.Nr = 3*self.num_neighbours
+            self.Nr = 3 * self.num_neighbours
             self.fg = self.model.fg
             self.rr = self.fg.reshape(self.Nr,)
 
@@ -117,7 +116,7 @@ class DecentralizedFormationMPC(object):
 
         # Starting state parameters - add slack here
         x0 = ca.MX.sym('x0', self.Nx)
-        x_ref = ca.MX.sym('x_ref', self.Nx*(self.Nt+1),)
+        x_ref = ca.MX.sym('x_ref', self.Nx * (self.Nt + 1),)
         u0 = ca.MX.sym('u0', self.Nu)
         param_s = ca.vertcat(x0, x_ref, u0)
 
@@ -128,8 +127,8 @@ class DecentralizedFormationMPC(object):
         # Create optimization variables
         opt_var = ctools.struct_symMX([(
             ctools.entry('u', shape=(self.Nu,), repeat=self.Nt),
-            ctools.entry('r', shape=(self.Nr,), repeat=self.Nt+1),
-            ctools.entry('x', shape=(self.Nx,), repeat=self.Nt+1),
+            ctools.entry('r', shape=(self.Nr,), repeat=self.Nt + 1),
+            ctools.entry('x', shape=(self.Nx,), repeat=self.Nt + 1),
         )])
         self.opt_var = opt_var
         self.num_var = opt_var.size
@@ -153,7 +152,7 @@ class DecentralizedFormationMPC(object):
         for t in range(self.Nt):
             # Get variables
             x_t = opt_var['x', t]
-            x_r = x_ref[(t*13):(t*13+13)]
+            x_r = x_ref[(t * 13):(t * 13 + 13)]
             u_t = opt_var['u', t]
             r_t = opt_var['r', t]
 
@@ -178,7 +177,7 @@ class DecentralizedFormationMPC(object):
                 v = x_t[3:6]
                 r_next = None
                 for i in range(self.num_neighbours):
-                    rF = r_t[(i*3):(3*i+3)]
+                    rF = r_t[(i * 3):(3 * i + 3)]
                     r_d = self.fg[:, i]
                     r_next_f = self.follower_dynamics(v, rF, r_d)
                     if r_next is None:
@@ -194,7 +193,7 @@ class DecentralizedFormationMPC(object):
                 r_next_l = self.leader_dynamics(v, q, rL, vL)
                 r_next = r_next_l
                 for i in range(1, self.num_neighbours, 1):
-                    rF = r_t[(i*3):(3*i+3)]
+                    rF = r_t[(i * 3):(3 * i + 3)]
                     r_d = self.fg[:, i]
                     r_next_f = self.follower_dynamics(v, rF, r_d)
                     r_next = ca.vertcat(r_next, r_next_f)
@@ -206,22 +205,22 @@ class DecentralizedFormationMPC(object):
                 r_next = self.leader_dynamics(v, q, rL, vL)
 
             # Set dynamics constraint for neighbours
-            self.con_eq.append(r_next - opt_var['r', t+1])
+            self.con_eq.append(r_next - opt_var['r', t + 1])
 
             # Dynamics constraint
             x_t_next = self.dynamics(x_t, u_t)
-            self.con_eq.append(x_t_next - opt_var['x', t+1])
+            self.con_eq.append(x_t_next - opt_var['x', t + 1])
 
         # Terminal Cost
         obj += self.terminal_cost(opt_var['x', self.Nt],
-                                  x_ref[self.Nt*13:], self.P,
+                                  x_ref[self.Nt * 13:], self.P,
                                   opt_var['r', self.Nt], self.rr, self.Pr)
 
         # Terminal constraint
         if self.tc_ub is not None and self.tc_lb is not None:
-            self.set_lower_bound_constraint(opt_var['x', self.Nt] - x_ref[self.Nt*13:],
+            self.set_lower_bound_constraint(opt_var['x', self.Nt] - x_ref[self.Nt * 13:],
                                             self.tc_lb)
-            self.set_upper_bound_constraint(opt_var['x', self.Nt] - x_ref[self.Nt*13:],
+            self.set_upper_bound_constraint(opt_var['x', self.Nt] - x_ref[self.Nt * 13:],
                                             self.tc_ub)
 
         # Equality constraints bounds are 0 (they are equality constraints),
@@ -232,7 +231,7 @@ class DecentralizedFormationMPC(object):
         con_eq_ub = np.zeros((num_eq_con, 1))
 
         # Set constraints
-        con = ca.vertcat(*(self.con_eq+self.con_ineq))
+        con = ca.vertcat(*(self.con_eq + self.con_ineq))
         self.con_lb = ca.vertcat(con_eq_lb, *self.con_ineq_lb)
         self.con_ub = ca.vertcat(con_eq_ub, *self.con_ineq_ub)
         nlp = dict(x=opt_var, f=obj, g=con, p=param_s)
@@ -376,9 +375,9 @@ class DecentralizedFormationMPC(object):
         """
 
         # Create functions and function variables for calculating the cost
-        Q = ca.MX.sym('Q', self.Nx-1, self.Nx-1)
+        Q = ca.MX.sym('Q', self.Nx - 1, self.Nx - 1)
         Qr = ca.MX.sym('Qr', self.Nr, self.Nr)    # Cost of rel. pos. error
-        P = ca.MX.sym('P', self.Nx-1, self.Nx-1)
+        P = ca.MX.sym('P', self.Nx - 1, self.Nx - 1)
         Pr = ca.MX.sym('Pr', self.Nr, self.Nr)
         R = ca.MX.sym('R', self.Nu, self.Nu)
 
@@ -405,8 +404,8 @@ class DecentralizedFormationMPC(object):
         ep = p - pr
         ev = v - vr
         ew = w - wr
-        eq = 0.5*inv_skew(ca.mtimes(r_mat(qr).T, r_mat(q))
-                          - ca.mtimes(r_mat(q).T, r_mat(qr)))
+        eq = 0.5 * inv_skew(ca.mtimes(r_mat(qr).T, r_mat(q))
+                            - ca.mtimes(r_mat(q).T, r_mat(qr)))
 
         e_vec = ca.vertcat(*[ep, ev, eq, ew])
 
