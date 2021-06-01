@@ -13,6 +13,9 @@ nh_(nh){
   // Set weigths service
   set_weights_ = nh_.advertiseService("set_weights_srv", &AcadoMPC::SetWeightsCallback, this);
 
+  // Set node shutdown service
+  kill_node_ = nh_.advertiseService("kill_node_srv", &AcadoMPC::KillNodeCallback, this);
+
   // Initialize y and yN
   for(int i = 0; i < ACADO_NY*(ACADO_N); i++)
 	{
@@ -51,8 +54,8 @@ bool AcadoMPC::GetControlCallback(reswarm_dmpc::GetControl::Request &req,
     //acado_shiftControls( 0 );
     //acado_preparationStep();
 	}
-  acado_printHeader();
-  acado_printControlVariables();
+  //acado_printHeader();
+  //acado_printControlVariables();
 
 	// Extract parameters
   res.status = status;
@@ -86,6 +89,14 @@ bool AcadoMPC::SetWeightsCallback(reswarm_dmpc::SetWeights::Request &req,
   // Answer back:
   res.success = true;
   res.message = "Weights set successfully!";
+  return true;
+}
+
+bool AcadoMPC::KillNodeCallback(std_srvs::Empty::Request &req, 
+                                std_srvs::Empty::Response &res)
+{
+  ROS_WARN_STREAM("Shutting down ACADO Wrapper...");
+  nh_.shutdown();
   return true;
 }
 

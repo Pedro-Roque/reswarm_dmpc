@@ -6,6 +6,7 @@ set(formation_src ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers/forma
 set(acado_unit_test_src ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers/setpoint/acado/acado_setpoint)
 set(acado_leader_src ${formation_src}/leader)
 set(acado_subleader_src ${formation_src}/sub_leader)
+set(controllers_src ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers)
 
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
@@ -85,7 +86,7 @@ target_include_directories(leader_mpc_lib PUBLIC
 )
 
 # Acado MPC solver interface for leader
-add_library(leader_ctl ${formation_src}/acado_wrapper.cpp)
+add_library(leader_ctl ${controllers_src}/acado_wrapper.cpp)
 target_link_libraries(leader_ctl leader_mpc_lib ${catkin_LIBRARIES})
 
 # Acado MPC solver node
@@ -121,7 +122,7 @@ target_include_directories(subleader_mpc_lib PUBLIC
 )
 
 # Acado MPC solver interface for subleader
-add_library(subleader_ctl ${formation_src}/acado_wrapper.cpp)
+add_library(subleader_ctl ${controllers_src}/acado_wrapper.cpp)
 target_link_libraries(subleader_ctl subleader_mpc_lib ${catkin_LIBRARIES})
 
 # Acado MPC solver node
@@ -156,7 +157,7 @@ target_include_directories(unittest_lib PUBLIC
 )
 
 # Acado MPC solver interface for leader
-add_library(unit_test_ctl ${formation_src}/acado_wrapper.cpp)
+add_library(unit_test_ctl ${controllers_src}/acado_wrapper.cpp)
 target_link_libraries(unit_test_ctl unittest_lib ${catkin_LIBRARIES})
 
 # Acado MPC solver node

@@ -31,6 +31,7 @@ class DistributedMPC(object):
         self.dt = 1
         self.rate = rospy.Rate(5)
         self.start = False
+        self.kill = False
         self.state = np.zeros((13, 1))
         self.state[9] = 1
         self.rg = None
@@ -165,6 +166,12 @@ class DistributedMPC(object):
 
         return ans
 
+    def kill_node_cb(self, req=std_srvs.srv.EmptyRequest()):
+        rospy.logwarn("Killing node...")
+        self.kill = True
+        ans = std_srvs.srv.EmptyResponse()
+        return ans
+
     # ---------------------------------
     # END: Callbacks Section
     # ---------------------------------
@@ -221,6 +228,10 @@ class DistributedMPC(object):
         # Start service
         self.start_service = rospy.Service("~start_srv", std_srvs.srv.SetBool,
                                            self.start_srv_callback)
+
+        # Kill service
+        self.kill_node_service = rospy.Service("~kill_srv", std_srvs.srv.Empty,
+                                               self.kill_node_cb)
 
         # Wait for services
         self.get_control.wait_for_service()
@@ -504,6 +515,10 @@ class DistributedMPC(object):
         """
 
         while not rospy.is_shutdown():
+            # Check if should kill node
+            if self.kill is True:
+                rospy.signal_shutdown("Unit test node shutting down...")
+                exit()
 
             # Only do something when started
             if self.start is False:
