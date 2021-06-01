@@ -6,17 +6,18 @@
             <!-- Topics -->
             <remap from="~pose_topic" to="loc/pose"/>
             <remap from="~twist_topic" to="loc/twist"/>
-            <remap from="~local_leader_pose" to="/honey/loc/pose"/>
-            <remap from="~follower_pose" to="/queen/loc/pose"/>
-            <remap from="~leader_information" to="/honey/information"/>
+            <remap from="~local_leader_pose" to="honey/gnc/ekf"/>
+            <remap from="~follower_pose" to="queen/gnc/ekf"/>
+            <remap from="~leader_information" to="honey/gs/data"/>
             <remap from="~control_topic" to="gnc/ctl/command"/>
-            <remap from="~broadcast_information" to="information"/>
+            <remap from="~broadcast_information" to="gs/data"/>
             <remap from="~flight_mode" to="mob/flight_mode"/>
             <!-- Services -->
             <remap from="~get_control_srv" to="get_control"/>
             <remap from="~set_weights_srv" to="set_weights"/>
             <remap from="~onboard_ctl_enable_srv" to="gnc/ctl/enable"/>
             <remap from="~pmc_timeout_srv" to="hw/pmc/set_timeout"/>
+            <remap from="~dds_bridge_srv" to="comm/astrobee_astrobee_bridge/trigger"/>
             <remap from="~start_srv" to="start"/>
         </node>
         <node pkg="reswarm_dmpc" type="subleader_ctl_node" name="subleader_ctl_node">  

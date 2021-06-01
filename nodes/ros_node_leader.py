@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from io import BytesIO as StringIO
 import numpy as np
 from numpy.core.numeric import Inf
 import rospy
@@ -53,8 +54,7 @@ class DistributedMPC(object):
 
         # Data timestamps and validity threshold
         self.ts_threshold = 1.0
-        self.pose_ts = 0.0
-        self.twist_ts = 0.0
+        self.state_ts = 0.0
         self.f1_position_ts = 0.0
 
         # MPC data
@@ -78,6 +78,10 @@ class DistributedMPC(object):
         else:
             rospy.loginfo("Timeout updated.")
 
+        # Activate DDS bridge
+        dds_bridge_trg = std_srvs.srv.EmptyRequest()
+        _ = self.dds_bridge(dds_bridge_trg)
+
         # Set weights and run main loop
         self.set_weights_iface()
         self.run()
@@ -87,7 +91,7 @@ class DistributedMPC(object):
     # ---------------------------------
     # BEGIN: Callbacks Section
     # ---------------------------------
-    def pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
+    def state_sub_cb(self, msg=ff_msgs.msg.EkfState()):
         """
         Pose callback to update the agent's position and attitude.
 
@@ -95,40 +99,25 @@ class DistributedMPC(object):
         :type msg: geometry_msgs.msg.PoseStamped
         """
 
-        self.pose_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
-        self.pose = np.array([[msg.pose.position.x,
+        self.state_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        # Update state variable
+        self.state = np.array([[msg.pose.position.x,
                                msg.pose.position.y,
                                msg.pose.position.z,
+                               msg.velocity.x,
+                               msg.velocity.y,
+                               msg.velocity.z,
                                msg.pose.orientation.x,
                                msg.pose.orientation.y,
                                msg.pose.orientation.z,
-                               msg.pose.orientation.w]]).T
-        # Update state variable
-        self.state[0:3] = self.pose[0:3]
-        self.state[6:10] = self.pose[3:7]
+                               msg.pose.orientation.w,
+                               msg.omega.x,
+                               msg.omega.y,
+                               msg.omega.z]]).T
+
         return
 
-    def twist_sub_cb(self, msg=geometry_msgs.msg.TwistStamped()):
-        """
-        Twist callback to update the agent's lineear and angular velocities.
-
-        :param msg: estimated velocities
-        :type msg: geometry_msgs.msg.TwistStamped
-        """
-
-        self.twist_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
-        self.twist = np.array([[msg.twist.linear.x,
-                                msg.twist.linear.y,
-                                msg.twist.linear.z,
-                                msg.twist.angular.x,
-                                msg.twist.angular.y,
-                                msg.twist.angular.z]]).T
-        # Update state variable
-        self.state[3:6] = self.twist[0:3]
-        self.state[10:13] = self.twist[3:6]
-        return
-
-    def f1_pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
+    def f1_state_sub_cb(self, msg=ff_msgs.msg.EkfState()):
         """
         Follower 1 position callback (for further simulation of a rel. pos.
         sensor)
@@ -187,15 +176,12 @@ class DistributedMPC(object):
         """
 
         # Subscribers
-        self.pose_sub = rospy.Subscriber("~pose_topic",
-                                         geometry_msgs.msg.PoseStamped,
-                                         self.pose_sub_cb)
-        self.twist_sub = rospy.Subscriber("~twist_topic",
-                                          geometry_msgs.msg.TwistStamped,
-                                          self.twist_sub_cb)
+        self.state_sub = rospy.Subscriber("~state_topic",
+                                          ff_msgs.msg.EkfState,
+                                          self.state_sub_cb)
         self.f1_sub = rospy.Subscriber("~follower_pose",
-                                       geometry_msgs.msg.PoseStamped,
-                                       self.f1_pose_sub_cb)
+                                       ff_msgs.msg.EkfState,
+                                       self.f1_state_sub_cb)
 
         # Publishers
         self.control_pub = rospy.Publisher("~control_topic",
@@ -203,7 +189,7 @@ class DistributedMPC(object):
                                            queue_size=1, latch=True)
 
         self.broadcast_pub = rospy.Publisher("~broadcast_information",
-                                             reswarm_dmpc.msg.InformationStamped,
+                                             ff_msgs.msg.GuestScienceData,
                                              queue_size=1)
 
         self.flight_mode_pub = rospy.Publisher("~flight_mode",
@@ -229,6 +215,10 @@ class DistributedMPC(object):
         self.pmc_timeout = rospy.ServiceProxy("~pmc_timeout_srv",
                                               ff_msgs.srv.SetFloat)
 
+        # Astrobee activate DDS messaging for Bee-to-Bee comms
+        self.dds_bridge = rospy.ServiceProxy("~dds_bridge_srv",
+                                             std_srvs.srv.Empty)
+
         # Start service
         self.start_service = rospy.Service("~start_srv", std_srvs.srv.SetBool,
                                            self.start_srv_callback)
@@ -238,6 +228,7 @@ class DistributedMPC(object):
         self.set_weights.wait_for_service()
         self.onboard_ctl.wait_for_service()
         self.pmc_timeout.wait_for_service()
+        self.dds_bridge.wait_for_service()
         pass
 
     def set_weights_iface(self):
@@ -285,25 +276,22 @@ class DistributedMPC(object):
         :rtype: boolean
         """
 
-        pos_val = False
-        vel_val = False
+        state_val = False
         rel_val = False
 
         # Check state validity
-        if rospy.get_time() - self.pose_ts < self.ts_threshold or OVERRIDE_TS:
-            pos_val = True
-        if rospy.get_time() - self.twist_ts < self.ts_threshold or OVERRIDE_TS:
-            vel_val = True
+        if rospy.get_time() - self.state_ts < self.ts_threshold or OVERRIDE_TS:
+            state_val = True
         if rospy.get_time() - self.f1_position_ts < self.ts_threshold or OVERRIDE_TS:
             rel_val = True
 
         # Check weights validity
 
-        if pos_val is False or vel_val is False or rel_val is False:
-            rospy.logwarn("Skipping control. Validity flags:\nPos: "
-                          + str(pos_val) + "; Vel: " + str(vel_val) + "; Rel: " + str(rel_val))
+        if state_val is False or rel_val is False:
+            rospy.logwarn("Skipping control. Validity flags:\nState: "
+                          + str(state_val) + "; Rel: " + str(rel_val))
 
-        return pos_val and vel_val and rel_val
+        return state_val and rel_val
 
     def get_relative_pos(self):
         """
@@ -430,7 +418,16 @@ class DistributedMPC(object):
         v.leader_target.linear.y = self.target_vel[1, 0]
         v.leader_target.linear.z = self.target_vel[2, 0]
 
-        return v
+        # Pack message as GS Data message
+        gs_data = ff_msgs.msg.GuestScienceData()
+        gs_data.header.stamp = rospy.Time.now()
+        gs_data.data_type = 2
+        gs_data.topic = "reswarm_dmpc.msg.InformationStamped"
+        data_buf = StringIO()
+        v.serialize(data_buf)
+        gs_data.data = data_buf.getvalue()
+
+        return gs_data
 
     def create_flight_mode_message(self):
         """
@@ -554,12 +551,12 @@ class DistributedMPC(object):
 
             # Create control input message
             u = self.create_control_message()
-            v = self.create_broadcast_message()
+            gs_data = self.create_broadcast_message()
             fm = self.create_flight_mode_message()
 
             # Publish control
             self.control_pub.publish(u)
-            self.broadcast_pub.publish(v)
+            self.broadcast_pub.publish(gs_data)
             self.flight_mode_pub.publish(fm)
             self.rate.sleep()
     pass

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from io import BytesIO as StringIO
 import numpy as np
 from numpy.core.numeric import Inf
 import rospy
@@ -65,24 +66,6 @@ class DistributedMPC(object):
         self.Nu = 6
         self.x_traj = None
         self.u_traj = None
-        self.weights_size = 3 + 3 * 1 + 3 + 3 + 6
-        self.weights_size_N = 3 + 3 * 1 + 3 + 3
-        rpos_l_weights = np.ones((3 * 1,))
-        rpos_f_weights = np.ones((3 * 1,)) * 0.05
-        verr_weights = np.ones((3,)) * 10
-        att_weights = np.ones((3,)) * 10
-        control_weights = np.array([5, 5, 5, 1, 1, 1]) * 10
-
-        self.ln_weights = np.concatenate((rpos_l_weights,
-                                          rpos_f_weights,
-                                          verr_weights,
-                                          att_weights,
-                                          control_weights), axis=0)
-
-        self.V_weights = np.concatenate((rpos_l_weights,
-                                         rpos_f_weights,
-                                         verr_weights,
-                                         att_weights), axis=0) * 200
 
         # Set publishers and subscribers
         self.set_services()
@@ -95,6 +78,12 @@ class DistributedMPC(object):
         if not ans.success:
             rospy.logerr("Couldn't change PMC timeout.")
             exit()
+        else:
+            rospy.loginfo("Timeout updated.")
+
+        # Activate DDS bridge
+        dds_bridge_trg = std_srvs.srv.EmptyRequest()
+        _ = self.dds_bridge(dds_bridge_trg)
 
         # Set weights and run main loop
         self.set_weights_iface()
@@ -146,7 +135,7 @@ class DistributedMPC(object):
         self.state[10:13] = self.twist[3:6]
         return
 
-    def l_pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
+    def l_pose_sub_cb(self, msg=ff_msgs.msg.EkfState()):
         """
         Local leader position callback (for further simulation of a rel. pos. sensor)
 
@@ -159,7 +148,7 @@ class DistributedMPC(object):
                                      msg.pose.position.z]]).T
         return
 
-    def f1_pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
+    def f1_pose_sub_cb(self, msg=ff_msgs.msg.EkfState()):
         """
         Follower 1 position callback (for further simulation of a rel. pos. sensor)
 
@@ -173,7 +162,7 @@ class DistributedMPC(object):
                                       msg.pose.position.z]]).T
         return
 
-    def leader_information_cb(self, msg=reswarm_dmpc.msg.InformationStamped):
+    def leader_information_cb(self, msg=ff_msgs.msg.GuestScienceData()):
         """
         Information vector received from the leader.
 
@@ -183,14 +172,18 @@ class DistributedMPC(object):
         self.information_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
         self.information_vec = np.zeros((6,))
 
-        # Information vector contains: [vD; vL]
-        self.information_vec[0] = msg.leader_target.linear.x
-        self.information_vec[1] = msg.leader_target.linear.y
-        self.information_vec[2] = msg.leader_target.linear.z
+        # De-serialize data
+        info_msg = reswarm_dmpc.msg.InformationStamped()
+        info_msg.deserialize(msg.data)
 
-        self.information_vec[3] = msg.leader_velocity.linear.x
-        self.information_vec[4] = msg.leader_velocity.linear.y
-        self.information_vec[5] = msg.leader_velocity.linear.z
+        # Information vector contains: [vD; vL]
+        self.information_vec[0] = info_msg.leader_target.linear.x
+        self.information_vec[1] = info_msg.leader_target.linear.y
+        self.information_vec[2] = info_msg.leader_target.linear.z
+
+        self.information_vec[3] = info_msg.leader_velocity.linear.x
+        self.information_vec[4] = info_msg.leader_velocity.linear.y
+        self.information_vec[5] = info_msg.leader_velocity.linear.z
         pass
 
     def start_srv_callback(self, req=std_srvs.srv.SetBoolRequest()):
@@ -240,13 +233,13 @@ class DistributedMPC(object):
                                           geometry_msgs.msg.TwistStamped,
                                           self.twist_sub_cb)
         self.l_sub = rospy.Subscriber("~local_leader_pose",
-                                      geometry_msgs.msg.PoseStamped,
+                                      ff_msgs.msg.EkfState,
                                       self.l_pose_sub_cb)
         self.f1_sub = rospy.Subscriber("~follower_pose",
-                                       geometry_msgs.msg.PoseStamped,
+                                       ff_msgs.msg.EkfState,
                                        self.f1_pose_sub_cb)
         self.broadcast_sub = rospy.Subscriber("~leader_information",
-                                              reswarm_dmpc.msg.InformationStamped,
+                                              ff_msgs.msg.GuestScienceData,
                                               self.leader_information_cb)
 
         # Publishers
@@ -255,7 +248,7 @@ class DistributedMPC(object):
                                            queue_size=1)
 
         self.broadcast_pub = rospy.Publisher("~broadcast_information",
-                                             reswarm_dmpc.msg.InformationStamped,
+                                             ff_msgs.msg.GuestScienceData,
                                              queue_size=1)
 
         self.flight_mode_pub = rospy.Publisher("~flight_mode",
@@ -282,6 +275,10 @@ class DistributedMPC(object):
         self.pmc_timeout = rospy.ServiceProxy("~pmc_timeout_srv",
                                               ff_msgs.srv.SetFloat)
 
+        # Astrobee activate DDS messaging for Bee-to-Bee comms
+        self.dds_bridge = rospy.ServiceProxy("~dds_bridge_srv",
+                                             std_srvs.srv.Empty)
+
         self.start_service = rospy.Service("~start_srv", std_srvs.srv.SetBool, self.start_srv_callback)
 
         # Wait for services
@@ -289,12 +286,32 @@ class DistributedMPC(object):
         self.set_weights.wait_for_service()
         self.onboard_ctl.wait_for_service()
         self.pmc_timeout.wait_for_service()
+        self.dds_bridge.wait_for_service()
         pass
 
     def set_weights_iface(self):
         """
         Function to set the controller weights.
         """
+
+        self.weights_size = 3 + 3 * 1 + 3 + 3 + 6
+        self.weights_size_N = 3 + 3 * 1 + 3 + 3
+        rpos_l_weights = np.ones((3 * 1,))
+        rpos_f_weights = np.ones((3 * 1,)) * 0.05
+        verr_weights = np.ones((3,)) * 10
+        att_weights = np.ones((3,)) * 10
+        control_weights = np.array([5, 5, 5, 1, 1, 1]) * 10
+
+        self.ln_weights = np.concatenate((rpos_l_weights,
+                                          rpos_f_weights,
+                                          verr_weights,
+                                          att_weights,
+                                          control_weights), axis=0)
+
+        self.V_weights = np.concatenate((rpos_l_weights,
+                                         rpos_f_weights,
+                                         verr_weights,
+                                         att_weights), axis=0) * 200
 
         srv = reswarm_dmpc.srv.SetWeightsRequest()
         srv.W = np.diag(self.ln_weights).ravel(order="F").tolist()
@@ -475,7 +492,16 @@ class DistributedMPC(object):
         v.leader_target.linear.y = self.information_vec[1]
         v.leader_target.linear.z = self.information_vec[2]
 
-        return v
+        # Pack message as GS Data message
+        gs_data = ff_msgs.msg.GuestScienceData()
+        gs_data.header.stamp = rospy.Time.now()
+        gs_data.data_type = 2
+        gs_data.topic = "reswarm_dmpc.msg.InformationStamped"
+        data_buf = StringIO()
+        v.serialize(data_buf)
+        gs_data.data = data_buf.getvalue()
+
+        return gs_data
 
     def create_flight_mode_message(self):
         """
@@ -598,12 +624,12 @@ class DistributedMPC(object):
 
             # Create control input message
             u = self.create_control_message()
-            v = self.create_broadcast_message()
+            gs_data = self.create_broadcast_message()
             fm = self.create_flight_mode_message()
 
             # Publish control
             self.control_pub.publish(u)
-            self.broadcast_pub.publish(v)
+            self.broadcast_pub.publish(gs_data)
             self.flight_mode_pub.publish(fm)
             self.rate.sleep()
     pass
