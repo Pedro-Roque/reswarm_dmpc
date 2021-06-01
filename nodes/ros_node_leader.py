@@ -7,7 +7,6 @@ import rospy
 from reswarm_dmpc.reference_generation.sinusoidal import SinusoidalReference
 from reswarm_dmpc.util import *
 
-import geometry_msgs.msg
 import std_srvs.srv
 import reswarm_dmpc.srv
 import reswarm_dmpc.msg
