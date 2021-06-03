@@ -508,7 +508,7 @@ class DistributedMPC(object):
         gs_data = ff_msgs.msg.GuestScienceData()
         gs_data.header.stamp = rospy.Time.now()
         gs_data.data_type = 2
-        gs_data.topic = "reswarm_dmpc.msg.InformationStamped"
+        gs_data.topic = "InformationStamped"
         data_buf = StringIO()
         v.serialize(data_buf)
         gs_data.data = data_buf.getvalue()
