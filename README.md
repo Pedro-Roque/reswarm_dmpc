@@ -62,3 +62,6 @@ rosservice call /bumble/start "data: true"
 
 ## Acknowledgements 
 A special thanks goes to Bryce Doerr, Keenan Albee, and Monica Ekal (the MPP crew), and to Brian Coltin and Rubén Ruiz, as well as to all the Astrobee Ops team, for their support in-view of the MPP ReSWARM test sessions and Astrobee Flight Software.
+
+## References
+P. Roque, S. Heshmati Alamdari, A. Nikou, and D. V. Dimarogonas, ‘Decentralized Formation Control for Multiple Quadrotors under Unidirectional Communication Constraints’, presented at the International Federation of Automatic Control (IFAC) World Congress, 2020.
