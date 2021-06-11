@@ -21,22 +21,35 @@ catkin build
 source devel/setup.sh
 ```
 
-3. Run the Astrobee simulator using the provided launch files
+## Testing
+
+The ROS nodes are created with the `*_interface.launch` files. Here, we provide an example:
+
+1. Run the Astrobee simulator using the provided launch files
 ```
 roslaunch reswarm_dmpc astrobee_sim.launch
 ```
 
-4. Run a unit test!
+2. Run unit tests with
 ```
 roslaunch reswarm_dmpc unit_test_translation_interface.launch
 ```
+or a formation control setting by launching on two terminals
+```
+roslaunch reswarm_dmpc leader_interface.launch
+```
+and 
+```
+roslaunch reswarm_dmpc subleader_interface.launch
+```
 
-5. Make sure that the robots are not in a faulty state by overriding it with
+
+3. Make sure that the robots are not in a faulty state by overriding it with
 ```
 rostopic pub /honey/mgt/sys_monitor/state ff_msgs/FaultState '{state: 0}' & \
 rostopic pub /bumble/mgt/sys_monitor/state ff_msgs/FaultState '{state: 0}'
 ```
-6. At this point, the node should show "Sleeping..." as a ROS Info message. This means that the node is waiting to be started. To start the node, call the starting service for each robot with
+4. At this point, the node should show "Sleeping..." as a ROS Info message. This means that the node is waiting to be started. To start the node, call the starting service for each robot with
 ```
 rosservice call /honey/start "data: true"
 ```
@@ -45,7 +58,7 @@ and
 rosservice call /bumble/start "data: true"
 ```
 
-7. After a few seconds, the robots should be moving and the window where the unit test was launched will print information regarding the controller status, computational times, function costs, among other variables of interest.
+5. After a few seconds, the robots should be moving and the window where the unit test was launched will print information regarding the controller status, computational times, function costs, among other variables of interest.
 
 ## Acknowledgements 
 A special thanks goes to Bryce Doerr, Keenan Albee, and Monica Ekal (the MPP crew), and to Brian Coltin and Rubén Ruiz, as well as to all the Astrobee Ops team, for their support in-view of the MPP ReSWARM test sessions and Astrobee Flight Software.
