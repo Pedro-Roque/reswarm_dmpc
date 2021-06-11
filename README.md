@@ -1,39 +1,50 @@
 # ReSwarm Distributed Nonlinear MPC 
-A package for Robust and Distributed Nonlinear MPC, based on CasADi, ACADOS and ROS frameworks and middleware. 
+A package for Distributed Nonlinear MPC, based on CasADi, ACADOS and ROS middleware. 
 
-This package provides system models and Model Predictive Controllers to control a [nasa/astrobee](https://github.com/nasa/astrobee) free-flyer for both setpoint 
-stabilization and trajectory tracking.
+This package provides system models and Model Predictive Controllers to control a team of [Astrobees](https://github.com/nasa/astrobee) free-flyers for both setpoint stabilization and trajectory tracking.
 
-### Install Dependencies:
-Required Python version: Python 2.7.17  
-Tested on: Ubuntu 18.04 , might work on most Linux-based OSs.  
-Python 3 compatibility: looked at, but no guarantees are provided.
+**NOTE**: This package requires an installed version of RTI DDS, along with the NASA-bundled RTI debians. A branch of this package will soon provide access to non-DDS communicaiton.
 
-To install dependencies, please run:
+## Installation
+This package depends on ROS Kinetic, but should be compatible with newer versions of ROS. It is assumed that the user previously installed ROS on his system. 
+
+1. Install the [Astrobee](https://github.com/nasa/astrobee) simulator following the instructions for [General Users](https://nasa.github.io/astrobee/html/install-nonNASA.html)
+
+2. Clone reswarm_dmpc to your catkin_ws and build the workspace
 ```
-python2 deps_install.py
-```
-
-### Usage with a simple Python Environment:
-1. Clone this repository into a folder in your system (preferably `$HOME`)
-```
-cd $HOME
+cd catkin_ws/src
 git clone https://github.com/Pedro-Roque/reswarm_dmpc.git
+cd reswarm_dmpc/
+pip install -r requirements.txt
+cd ../../
+catkin build
+source devel/setup.sh
 ```
-2. Add the `reswarm_dmpc/src` to your `$PYTHONPATH` with:
-```
-cd reswarm_dmpc
-export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
-```
-3. Run the unit tests in the nodes folder with:
-```
-cd nodes/
-py.test -l test_astrobee.py
-py.test -l test_mpc.py
-```
-**Note:** these tests are also running using Github Actions at every push to the remote repository.
 
-### Usage with ROS (Robot Operating System):
-1. Clone the repo into a `catkin_ws/src` directory 
-2. Build the workspace with `catkin build` in the `catkin_ws` folder
-3. Run the nodes `unit_test_<method>.py` to test different types of MPC strategies using `rosrun reswarm_dmpc run_stabilization.py` or `rosrun reswarm_dmpc run_tracking.py`. 
+3. Run the Astrobee simulator using the provided launch files
+```
+roslaunch reswarm_dmpc astrobee_sim.launch
+```
+
+4. Run a unit test!
+```
+roslaunch reswarm_dmpc unit_test_translation_interface.launch
+```
+
+5. Make sure that the robots are not in a faulty state by overriding it with
+```
+rostopic pub /honey/mgt/sys_monitor/state ff_msgs/FaultState '{state: 0}' & rostopic pub /bumble/mgt/sys_monitor/state ff_msgs/FaultState '{state: 0}'
+```
+6. At this point, the node should show "Sleeping..." as a ROS Info message. This means that the node is waiting to be started. To start the node, call the starting service for each robot with
+```
+rosservice call /honey/start "data: true"
+```
+and
+```
+rosservice call /bumble/start "data: true"
+```
+
+7. After a few seconds, the robots should moving and the window where the unit test was launched will print information regarding the controller status, computational times, function costs, and more!
+
+## Acknowledgements 
+A special thanks goes Bryce Doerr, Keenan Albee, Monica Ekal,  Brian Coltin and Rubén Ruiz, as well as to all the Astrobee Ops team, for their support in-view of the MPP ReSWARM test sessions and Astrobee Flight Software.
