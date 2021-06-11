@@ -48,4 +48,4 @@ rosservice call /bumble/start "data: true"
 7. After a few seconds, the robots should be moving and the window where the unit test was launched will print information regarding the controller status, computational times, function costs, among other variables of interest.
 
 ## Acknowledgements 
-A special thanks goes Bryce Doerr, Keenan Albee, Monica Ekal,  Brian Coltin and Rubén Ruiz, as well as to all the Astrobee Ops team, for their support in-view of the MPP ReSWARM test sessions and Astrobee Flight Software.
+A special thanks goes to Bryce Doerr, Keenan Albee, and Monica Ekal (the MPP crew), and to Brian Coltin and Rubén Ruiz, as well as to all the Astrobee Ops team, for their support in-view of the MPP ReSWARM test sessions and Astrobee Flight Software.
