@@ -3,7 +3,7 @@ A package for Distributed Nonlinear MPC, based on CasADi, ACADOS and ROS middlew
 
 This package provides system models and Model Predictive Controllers to control a team of [Astrobees](https://github.com/nasa/astrobee) free-flyers for both setpoint stabilization and trajectory tracking.
 
-**NOTE**: This package requires an installed version of RTI DDS, along with the NASA-bundled RTI debians. A branch of this package will soon provide access to non-DDS communicaiton.
+**NOTE**: This package requires an installed version of RTI DDS, along with the NASA-bundled RTI debians. The branch "dds_free" contains a modified version of the communications to allow for DDS-free operation. Please clone that branch for usage without DDS modules.
 
 ## Installation
 This package depends on ROS Kinetic, but should be compatible with newer versions of ROS. It is assumed that the user previously installed ROS on his system. 
