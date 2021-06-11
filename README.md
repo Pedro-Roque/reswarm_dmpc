@@ -33,7 +33,8 @@ roslaunch reswarm_dmpc unit_test_translation_interface.launch
 
 5. Make sure that the robots are not in a faulty state by overriding it with
 ```
-rostopic pub /honey/mgt/sys_monitor/state ff_msgs/FaultState '{state: 0}' & rostopic pub /bumble/mgt/sys_monitor/state ff_msgs/FaultState '{state: 0}'
+rostopic pub /honey/mgt/sys_monitor/state ff_msgs/FaultState '{state: 0}' & \
+rostopic pub /bumble/mgt/sys_monitor/state ff_msgs/FaultState '{state: 0}'
 ```
 6. At this point, the node should show "Sleeping..." as a ROS Info message. This means that the node is waiting to be started. To start the node, call the starting service for each robot with
 ```
@@ -44,7 +45,7 @@ and
 rosservice call /bumble/start "data: true"
 ```
 
-7. After a few seconds, the robots should moving and the window where the unit test was launched will print information regarding the controller status, computational times, function costs, and more!
+7. After a few seconds, the robots should be moving and the window where the unit test was launched will print information regarding the controller status, computational times, function costs, among other variables of interest.
 
 ## Acknowledgements 
 A special thanks goes Bryce Doerr, Keenan Albee, Monica Ekal,  Brian Coltin and Rubén Ruiz, as well as to all the Astrobee Ops team, for their support in-view of the MPP ReSWARM test sessions and Astrobee Flight Software.
