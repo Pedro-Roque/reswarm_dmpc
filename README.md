@@ -30,7 +30,7 @@ The ROS nodes are created with the `*_interface.launch` files. Here, we provide 
 roslaunch reswarm_dmpc astrobee_sim.launch
 ```
 
-2. Run unit tests with
+2. Run a unit test for translation with
 ```
 roslaunch reswarm_dmpc unit_test_translation_interface.launch
 ```
