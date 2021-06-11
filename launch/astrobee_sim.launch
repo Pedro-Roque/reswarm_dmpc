@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-    <include file="$(find reswarm)/launch/sim.launch" >
+    <include file="$(find reswarm_dmpc)/launch/sim.launch" >
         <arg name="dds" value="false"/>
         <arg name="rviz" value="true"/>
         <arg name="default" value="false"/>
