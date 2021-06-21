@@ -513,7 +513,7 @@ class DistributedMPC(object):
         for i in range(self.N + 1):
             q = predicted_state[6:10, i]
             predicted_state[6:10, i] = q / np.linalg.norm(q)
-        return predicted_state.ravel(order="F").tolist().
+        return predicted_state.ravel(order="F").tolist()
 
     def publish_test_finish(self):
         """
