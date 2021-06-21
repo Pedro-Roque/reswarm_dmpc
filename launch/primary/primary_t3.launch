@@ -1,7 +1,13 @@
 <?xml version="1.0"?>
 <launch>
-    <group ns="honey">
-        <rosparam file="$(find reswarm_dmpc)/config/honey/leader_iface.yaml" command="load" ns="" />
+    <arg name="nspace" default="honey"/>
+    <arg name="ground" default="true"/>
+
+    <group ns="$(arg nspace)">
+        <!-- Select params for ground/iss tests -->
+        <rosparam file="$(find reswarm_dmpc)/config/honey/leader_iface_gnd.yaml" command="load" ns="" if="$(eval ground == true)"/>
+        <rosparam file="$(find reswarm_dmpc)/config/honey/leader_iface_iss.yaml" command="load" ns="" if="$(eval ground == false)"/>
+        
         <node pkg="reswarm_dmpc" type="ros_node_leader.py" name="primary_dmpc_iface" output="screen">
             <!-- Topics -->
             <remap from="~state_topic" to="gnc/ekf"/>

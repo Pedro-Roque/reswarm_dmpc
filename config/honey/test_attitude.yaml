@@ -1,5 +1,5 @@
 test_num: 2
-unit_test_time: 45
+unit_test_time: 30
 targets:
   q:
     t1: [11.0, -8, 4.5, 0, 0, 0, 0.183, 0.183, -0.683, 0.683, 0, 0, 0] 
