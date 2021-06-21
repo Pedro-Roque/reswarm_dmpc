@@ -9,6 +9,7 @@ import geometry_msgs.msg
 import std_srvs.srv
 import reswarm_dmpc.srv
 import reswarm_dmpc.msg
+import reswarm_msgs.msg
 import ff_msgs.msg
 import ff_msgs.srv
 
@@ -43,6 +44,7 @@ class UnitTestsMPC(object):
         self.test_num = rospy.get_param("test_num")
         self.test_time = rospy.get_param("unit_test_time")
         self.test_targets = rospy.get_param("targets")
+        self.expiration_time = 6 * self.test_time
 
         # Data timestamps and validity threshold
         self.ts_threshold = 1.0
@@ -207,6 +209,10 @@ class UnitTestsMPC(object):
 
         self.flight_mode_pub = rospy.Publisher("~flight_mode",
                                                ff_msgs.msg.FlightMode,
+                                               queue_size=1)
+
+        self.flight_mode_pub = rospy.Publisher("~reswarm_status",
+                                               reswarm_msgs.msg.ReswarmStatus,
                                                queue_size=1)
 
         pass
@@ -532,6 +538,16 @@ class UnitTestsMPC(object):
             predicted_state[6:10, i] = q / np.linalg.norm(q)
         return predicted_state.ravel(order="F").tolist()
 
+    def publish_test_finish(self):
+        """
+        Helper function to publish the finished test message.
+        """
+
+        msg = reswarm_msgs.msg.ReswarmStatus()
+        msg.test_finished = True
+        self.flight_mode_pub.publish(msg)
+        return
+
     def run(self):
         """
         Main operation loop.
@@ -548,18 +564,25 @@ class UnitTestsMPC(object):
             self.broadcast_pub.publish(v)
 
             # Only do something when started
+            t = rospy.get_time() - self.t0
             if self.start is False:
-                self.rate.sleep()
                 rospy.loginfo("Sleeping...")
+                self.rate.sleep()
                 continue
 
-            rospy.loginfo("Looping!")
+            if t > self.expiration_time:
+                self.publish_test_finish()
+                rospy.loginfo("Finished!")
+                self.rate.sleep()
+                continue
+
             # Use self.pose, self.twist to generate a control input
-            t = rospy.get_time() - self.t0
             val, req = self.prepare_request(t)
             if val is False:
                 self.rate.sleep()
                 continue
+
+            rospy.loginfo("Looping!")
 
             # Start the RTI Loop
             tin = rospy.get_time()

@@ -10,6 +10,7 @@ from reswarm_dmpc.util import *
 import std_srvs.srv
 import reswarm_dmpc.srv
 import reswarm_dmpc.msg
+import reswarm_msgs.msg
 import ff_msgs.msg
 import ff_msgs.srv
 
@@ -41,6 +42,7 @@ class DistributedMPC(object):
         self.pose = None
 
         # Collect parameters
+        self.expiration_time = rospy.get_param("expiration_time")
         rg_start = rospy.get_param("traj_start")
         self.rg_start = np.array([rg_start]).reshape((3, 1))
         bearings = rospy.get_param("bearings")
@@ -200,6 +202,10 @@ class DistributedMPC(object):
 
         self.flight_mode_pub = rospy.Publisher("~flight_mode",
                                                ff_msgs.msg.FlightMode,
+                                               queue_size=1)
+
+        self.flight_mode_pub = rospy.Publisher("~reswarm_status",
+                                               reswarm_msgs.msg.ReswarmStatus,
                                                queue_size=1)
 
         pass
@@ -507,7 +513,17 @@ class DistributedMPC(object):
         for i in range(self.N + 1):
             q = predicted_state[6:10, i]
             predicted_state[6:10, i] = q / np.linalg.norm(q)
-        return predicted_state.ravel(order="F").tolist()
+        return predicted_state.ravel(order="F").tolist().
+
+    def publish_test_finish(self):
+        """
+        Helper function to publish the finished test message.
+        """
+
+        msg = reswarm_msgs.msg.ReswarmStatus()
+        msg.test_finished = True
+        self.flight_mode_pub.publish(msg)
+        return
 
     def run(self):
         """
@@ -526,9 +542,14 @@ class DistributedMPC(object):
                 rospy.loginfo("Sleeping...")
                 continue
 
-            rospy.loginfo("Looping!")
-            # Use self.pose, self.twist to generate a control input
             t = rospy.get_time() - self.t0
+            if t > self.expiration_time:
+                self.publish_test_finish()
+                rospy.loginfo("Finished!")
+                self.rate.sleep()
+                continue
+
+            rospy.loginfo("Looping!")
             val, req = self.prepare_request(t)
             if val is False:
                 self.rate.sleep()

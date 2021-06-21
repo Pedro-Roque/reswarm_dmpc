@@ -10,6 +10,7 @@ import geometry_msgs.msg
 import std_srvs.srv
 import reswarm_dmpc.srv
 import reswarm_dmpc.msg
+import reswarm_msgs.msg
 import ff_msgs.msg
 import ff_msgs.srv
 
@@ -46,6 +47,7 @@ class DistributedMPC(object):
 
         # Collect parameters
         bearings = rospy.get_param("bearings")
+        self.expiration_time = rospy.get_param("expiration_time")
         self.bearings = np.array([bearings['l']]).reshape((3,))
         self.bearings = np.concatenate((self.bearings, np.array([bearings['f1']]).reshape((3,))))
 
@@ -206,6 +208,7 @@ class DistributedMPC(object):
             obc.data = False
             self.onboard_ctl(obc)
             self.start = True
+            self.t0 = rospy.get_time()
         else:
             ans.success = True
             ans.message = "Node stopped!"
@@ -260,6 +263,10 @@ class DistributedMPC(object):
 
         self.flight_mode_pub = rospy.Publisher("~flight_mode",
                                                ff_msgs.msg.FlightMode,
+                                               queue_size=1)
+
+        self.flight_mode_pub = rospy.Publisher("~reswarm_status",
+                                               reswarm_msgs.msg.ReswarmStatus,
                                                queue_size=1)
 
         pass
@@ -584,6 +591,16 @@ class DistributedMPC(object):
             predicted_state[6:10, i] = q / np.linalg.norm(q)
         return predicted_state.ravel(order="F").tolist()
 
+    def publish_test_finish(self):
+        """
+        Helper function to publish the finished test message.
+        """
+
+        msg = reswarm_msgs.msg.ReswarmStatus()
+        msg.test_finished = True
+        self.flight_mode_pub.publish(msg)
+        return
+
     def run(self):
         """
         Main operation loop.
@@ -599,6 +616,13 @@ class DistributedMPC(object):
             if self.start is False:
                 self.rate.sleep()
                 rospy.loginfo("Sleeping...")
+                continue
+
+            t = rospy.get_time() - self.t0
+            if t > self.expiration_time:
+                self.publish_test_finish()
+                rospy.loginfo("Finished!")
+                self.rate.sleep()
                 continue
 
             rospy.loginfo("Looping!")
