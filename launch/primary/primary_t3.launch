@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="nspace" default="honey"/>
-    <arg name="ground" default="true"/>
+    <arg name="nspace" default=""/>
+    <arg name="ground" default="false"/>
 
     <group ns="$(arg nspace)">
         <!-- Select params for ground/iss tests -->

@@ -29,6 +29,8 @@ class DistributedMPC(object):
         Initialize Distributed MPC Class
         """
 
+        rospy.loginfo("Starting Leader DMPC node...")
+
         self.dt = 1
         self.rate = rospy.Rate(5)
         self.start = False
@@ -42,7 +44,7 @@ class DistributedMPC(object):
         self.pose = None
 
         # Collect parameters
-        self.expiration_time = rospy.get_param("expiration_time")
+        self.expiration_time = 240 # rospy.get_param("expiration_time")
         rg_start = rospy.get_param("traj_start")
         self.rg_start = np.array([rg_start]).reshape((3, 1))
         bearings = rospy.get_param("bearings")
@@ -67,8 +69,8 @@ class DistributedMPC(object):
         self.u_traj = None
 
         # Set publishers and subscribers
-        self.set_services()
         self.set_subscribers_publishers()
+        self.set_services()
 
         # Change onboard timeout
         new_timeout = ff_msgs.srv.SetFloatRequest()

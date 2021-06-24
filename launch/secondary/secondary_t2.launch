@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="nspace" default="bumble"/>
+    <arg name="nspace" default=""/>
     <arg name="partner" default="honey"/>
-    <arg name="ground" default="true"/>
+    <arg name="ground" default="false"/>
     
     <!-- Launch astrobee unit test node-->
     <group ns="$(arg nspace)">

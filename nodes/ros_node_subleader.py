@@ -36,7 +36,6 @@ class DistributedMPC(object):
         self.kill = False
         self.state = np.zeros((13, 1))
         self.state[9] = 1
-        self.qd = np.array([0, 0, -0.707, 0.707]).reshape((4,))
         self.rg = None
         self.t0 = 0.0
         self.l_position = None
@@ -46,8 +45,10 @@ class DistributedMPC(object):
         self.pose = None
 
         # Collect parameters
-        bearings = rospy.get_param("bearings")
         self.expiration_time = rospy.get_param("expiration_time")
+        qd = rospy.get_param("qd") 
+        self.qd = np.array(qd).reshape((4,))
+        bearings = rospy.get_param("bearings")
         self.bearings = np.array([bearings['l']]).reshape((3,))
         self.bearings = np.concatenate((self.bearings, np.array([bearings['f1']]).reshape((3,))))
 
