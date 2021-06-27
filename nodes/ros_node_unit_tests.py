@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from io import BytesIO as StringIO
 import numpy as np
 from numpy.core.numeric import Inf
 import rospy
@@ -73,8 +74,13 @@ class UnitTestsMPC(object):
         else:
             rospy.loginfo("Timeout updated.")
 
+        # Activate DDS bridge
+        dds_bridge_trg = std_srvs.srv.EmptyRequest()
+        _ = self.dds_bridge(dds_bridge_trg)
+
         # Set weights and run main loop
         self.set_weights_iface()
+        rospy.loginfo("Starting node!")
         self.run()
 
         pass
@@ -123,22 +129,30 @@ class UnitTestsMPC(object):
         self.state[10:13] = self.twist[3:6]
         return
 
-    def information_sub_cb(self, msg=reswarm_dmpc.msg.InformationStamped()):
+    def information_sub_cb(self, msg=ff_msgs.msg.GuestScienceData()):
         """
-        Receive information from another Astrobee.
+        Information vector received from neighbour.
 
-        :param msg: received data, defaults to reswarm_dmpc.msg.InformationStamped()
-        :type msg: InformationStamped, optional
+        :param msg: information vector.
+        :type msg: reswarm_dmpc.msg.InformationStamped
         """
 
         self.info_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
-        self.info_lv = np.array([[msg.leader_velocity.linear.x,
-                                  msg.leader_velocity.linear.y,
-                                  msg.leader_velocity.linear.z]]).T
-        self.info_lt = np.array([[msg.leader_target.linear.x,
-                                  msg.leader_target.linear.y,
-                                  msg.leader_target.linear.z]]).T
-        return
+        self.information_vec = np.zeros((6,))
+
+        # De-serialize data
+        info_msg = reswarm_dmpc.msg.InformationStamped()
+        info_msg.deserialize(msg.data)
+
+        # Information vector contains: [vD; vL]
+        self.information_vec[0] = info_msg.leader_target.linear.x
+        self.information_vec[1] = info_msg.leader_target.linear.y
+        self.information_vec[2] = info_msg.leader_target.linear.z
+
+        self.information_vec[3] = info_msg.leader_velocity.linear.x
+        self.information_vec[4] = info_msg.leader_velocity.linear.y
+        self.information_vec[5] = info_msg.leader_velocity.linear.z
+        pass
 
     def start_srv_callback(self, req=std_srvs.srv.SetBoolRequest()):
         """
@@ -194,9 +208,9 @@ class UnitTestsMPC(object):
         self.twist_sub = rospy.Subscriber("~twist_topic",
                                           geometry_msgs.msg.TwistStamped,
                                           self.twist_sub_cb)
-        self.information_sub = rospy.Subscriber("~receive_information",
-                                                reswarm_dmpc.msg.InformationStamped,
-                                                self.information_sub_cb)
+        self.broadcast_sub = rospy.Subscriber("~gsd_information",
+                                              ff_msgs.msg.GuestScienceData,
+                                              self.information_sub_cb)
 
         # Publishers
         self.control_pub = rospy.Publisher("~control_topic",
@@ -204,16 +218,16 @@ class UnitTestsMPC(object):
                                            queue_size=1, latch=True)
 
         self.broadcast_pub = rospy.Publisher("~broadcast_information",
-                                             reswarm_dmpc.msg.InformationStamped,
+                                             ff_msgs.msg.GuestScienceData,
                                              queue_size=1)
 
         self.flight_mode_pub = rospy.Publisher("~flight_mode",
                                                ff_msgs.msg.FlightMode,
                                                queue_size=1)
 
-        self.flight_mode_pub = rospy.Publisher("~reswarm_status",
-                                               reswarm_msgs.msg.ReswarmStatus,
-                                               queue_size=1)
+        self.reswarm_status_pub = rospy.Publisher("~reswarm_status",
+                                                  reswarm_msgs.msg.ReswarmStatus,
+                                                  queue_size=1)
 
         pass
 
@@ -233,6 +247,10 @@ class UnitTestsMPC(object):
                                               std_srvs.srv.SetBool)
         self.pmc_timeout = rospy.ServiceProxy("~pmc_timeout_srv",
                                               ff_msgs.srv.SetFloat)
+
+        # Astrobee activate DDS messaging for Bee-to-Bee comms
+        self.dds_bridge = rospy.ServiceProxy("~dds_bridge_srv",
+                                             std_srvs.srv.Empty)
 
         # Start service
         self.start_service = rospy.Service("~start_srv", std_srvs.srv.SetBool,
@@ -466,7 +484,16 @@ class UnitTestsMPC(object):
         v.leader_target.linear.y = 5
         v.leader_target.linear.z = 6
 
-        return v
+        # Pack message as GS Data message
+        gs_data = ff_msgs.msg.GuestScienceData()
+        gs_data.header.stamp = rospy.Time.now()
+        gs_data.data_type = 2
+        gs_data.topic = "InformationStamped"
+        data_buf = StringIO()
+        v.serialize(data_buf)
+        gs_data.data = data_buf.getvalue()
+
+        return gs_data
 
     def create_flight_mode_message(self):
         """
@@ -545,7 +572,7 @@ class UnitTestsMPC(object):
 
         msg = reswarm_msgs.msg.ReswarmStatus()
         msg.test_finished = True
-        self.flight_mode_pub.publish(msg)
+        self.reswarm_status_pub.publish(msg)
         return
 
     def run(self):
@@ -560,8 +587,8 @@ class UnitTestsMPC(object):
                 exit()
 
             # Broadcast static info
-            v = self.create_broadcast_message()
-            self.broadcast_pub.publish(v)
+            gs_data = self.create_broadcast_message()
+            self.broadcast_pub.publish(gs_data)
 
             # Only do something when started
             t = rospy.get_time() - self.t0
