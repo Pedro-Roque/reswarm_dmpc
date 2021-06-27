@@ -46,7 +46,7 @@ class DistributedMPC(object):
 
         # Collect parameters
         self.expiration_time = rospy.get_param("expiration_time")
-        qd = rospy.get_param("qd") 
+        qd = rospy.get_param("qd")
         self.qd = np.array(qd).reshape((4,))
         bearings = rospy.get_param("bearings")
         self.bearings = np.array([bearings['l']]).reshape((3,))
@@ -266,9 +266,9 @@ class DistributedMPC(object):
                                                ff_msgs.msg.FlightMode,
                                                queue_size=1)
 
-        self.flight_mode_pub = rospy.Publisher("~reswarm_status",
-                                               reswarm_msgs.msg.ReswarmStatus,
-                                               queue_size=1)
+        self.reswarm_status_pub = rospy.Publisher("~reswarm_status",
+                                                  reswarm_msgs.msg.ReswarmStatus,
+                                                  queue_size=1)
 
         pass
 
@@ -599,7 +599,7 @@ class DistributedMPC(object):
 
         msg = reswarm_msgs.msg.ReswarmStatus()
         msg.test_finished = True
-        self.flight_mode_pub.publish(msg)
+        self.reswarm_status_pub.publish(msg)
         return
 
     def run(self):

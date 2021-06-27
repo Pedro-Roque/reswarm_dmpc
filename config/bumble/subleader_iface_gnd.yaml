@@ -1,3 +1,4 @@
+expiration_time: 240.0
 bearings:
   l: [1.0, 0.0, 0.0]
   f1: [-1.0, 0.0, 0.0]

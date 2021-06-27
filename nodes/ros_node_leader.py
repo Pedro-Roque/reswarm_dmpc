@@ -44,7 +44,7 @@ class DistributedMPC(object):
         self.pose = None
 
         # Collect parameters
-        self.expiration_time = 240 # rospy.get_param("expiration_time")
+        self.expiration_time = rospy.get_param("expiration_time")
         rg_start = rospy.get_param("traj_start")
         self.rg_start = np.array([rg_start]).reshape((3, 1))
         bearings = rospy.get_param("bearings")
@@ -72,6 +72,8 @@ class DistributedMPC(object):
         self.set_subscribers_publishers()
         self.set_services()
 
+        rospy.logwarn("Services and Topics set...")
+
         # Change onboard timeout
         new_timeout = ff_msgs.srv.SetFloatRequest()
         new_timeout.data = 1.5
@@ -88,6 +90,7 @@ class DistributedMPC(object):
 
         # Set weights and run main loop
         self.set_weights_iface()
+        rospy.logwarn("Starting node!")
         self.run()
 
         pass
@@ -206,9 +209,9 @@ class DistributedMPC(object):
                                                ff_msgs.msg.FlightMode,
                                                queue_size=1)
 
-        self.flight_mode_pub = rospy.Publisher("~reswarm_status",
-                                               reswarm_msgs.msg.ReswarmStatus,
-                                               queue_size=1)
+        self.reswarm_status_pub = rospy.Publisher("~reswarm_status",
+                                                  reswarm_msgs.msg.ReswarmStatus,
+                                                  queue_size=1)
 
         pass
 
@@ -242,11 +245,11 @@ class DistributedMPC(object):
                                                self.kill_node_cb)
 
         # Wait for services
-        self.get_control.wait_for_service()
-        self.set_weights.wait_for_service()
-        self.onboard_ctl.wait_for_service()
-        self.pmc_timeout.wait_for_service()
-        self.dds_bridge.wait_for_service()
+        self.get_control.wait_for_service(5.0)
+        self.set_weights.wait_for_service(5.0)
+        self.onboard_ctl.wait_for_service(5.0)
+        self.pmc_timeout.wait_for_service(5.0)
+        self.dds_bridge.wait_for_service(5.0)
         pass
 
     def set_weights_iface(self):
@@ -524,7 +527,7 @@ class DistributedMPC(object):
 
         msg = reswarm_msgs.msg.ReswarmStatus()
         msg.test_finished = True
-        self.flight_mode_pub.publish(msg)
+        self.reswarm_status_pub.publish(msg)
         return
 
     def run(self):
