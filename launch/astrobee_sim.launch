@@ -1,9 +1,10 @@
 <?xml version="1.0"?>
 <launch>
+    <arg name="world" default="iss"/>
     <include file="$(find astrobee)/launch/sim_reswarm.launch" >
         <arg name="dds" value="true"/>
         <arg name="rviz" value="true"/>
-        <arg name="world" value="iss"/>
+        <arg name="world" value="$(arg world)"/>
         <arg name="dmpc_test" value="true"/>
     </include>
 </launch>

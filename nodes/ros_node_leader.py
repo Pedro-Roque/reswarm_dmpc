@@ -47,6 +47,8 @@ class DistributedMPC(object):
         self.expiration_time = rospy.get_param("expiration_time")
         rg_start = rospy.get_param("traj_start")
         self.rg_start = np.array([rg_start]).reshape((3, 1))
+        traj_velocity = rospy.get_param("traj_velocity")
+        self.traj_velocity = np.array([traj_velocity]).reshape((3, 1))
         bearings = rospy.get_param("bearings")
         self.bearings = np.array([bearings['f1']]).reshape((3, 1))
         qd = rospy.get_param("qd")
@@ -343,7 +345,7 @@ class DistributedMPC(object):
             return val, 0
 
         # Valid data, so we proceed
-        self.target_vel = self.rg.get_vel_trajectory_at_t(t, self.N + 1)
+        self.target_vel = self.rg.get_vel_trajectory_at_t(t, self.N + 1, self.traj_velocity)
         rel_pos = self.get_relative_pos()
         self.x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13 + 3, 1))
         if self.x_traj is None:

@@ -77,7 +77,7 @@ class SinusoidalReference(object):
 
         return xr[3:6, :]
 
-    def get_vel_trajectory_at_t(self, t, points):
+    def get_vel_trajectory_at_t(self, t, points, vel_prf):
         """
         Create trajectory starting at time t with the specified
         number of points
@@ -91,9 +91,9 @@ class SinusoidalReference(object):
         """
 
         t = np.linspace(t, (points - 1) * self.dt + t, points)
-        vx = self.A * np.cos(2 * np.pi * self.f * t)
-        vy = -0.005 * np.ones(points)
-        vz = self.A * np.sin(2 * np.pi * self.f * t)
+        vx = vel_prf[0] * np.cos(2 * np.pi * self.f * t)
+        vy = vel_prf[1] * np.ones(points)
+        vz = vel_prf[2] * np.sin(2 * np.pi * self.f * t)
 
         # Once we have a velocity profile, we can create the
         # position references
