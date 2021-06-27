@@ -49,7 +49,8 @@ class DistributedMPC(object):
         self.rg_start = np.array([rg_start]).reshape((3, 1))
         bearings = rospy.get_param("bearings")
         self.bearings = np.array([bearings['f1']]).reshape((3, 1))
-        self.qd = np.array([0, 0, -0.707, 0.707]).reshape((4, 1))
+        qd = rospy.get_param("bearings")
+        self.qd = np.array([qd]).reshape((4, 1))
 
         # Print params:
         if DEBUG:
