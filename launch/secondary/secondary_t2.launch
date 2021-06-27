@@ -18,6 +18,7 @@
             <remap from="~gsd_information" to="$(arg partner)/gs/data"/>
             <remap from="~broadcast_information" to="gs/data"/>
             <remap from="~flight_mode" to="mob/flight_mode"/>
+            <remap from="~reswarm_status" to="reswarm/status"/>
             <!-- Services -->
             <remap from="~get_control_srv" to="get_control"/>
             <remap from="~set_weights_srv" to="set_weights"/>
