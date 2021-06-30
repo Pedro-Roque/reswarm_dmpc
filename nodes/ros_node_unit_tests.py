@@ -45,7 +45,7 @@ class UnitTestsMPC(object):
         self.test_num = rospy.get_param("test_num")
         self.test_time = rospy.get_param("unit_test_time")
         self.test_targets = rospy.get_param("targets")
-        self.expiration_time = 6 * self.test_time
+        self.expiration_time = rospy.get_param("expiration_time")
 
         # Data timestamps and validity threshold
         self.ts_threshold = 1.0
