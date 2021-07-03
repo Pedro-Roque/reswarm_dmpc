@@ -14,7 +14,7 @@ import reswarm_msgs.msg
 import ff_msgs.msg
 import ff_msgs.srv
 
-DEBUG = False
+DEBUG = True
 OVERRIDE_TS = False
 
 
@@ -408,7 +408,6 @@ class UnitTestsMPC(object):
         self.online_data = np.repeat(setpoint, self.N + 1, axis=1)
 
         if DEBUG:
-            print("Target Velocity: ", self.target_vel.shape)
             print("State dims: ", self.state.shape)
             print("X0 data: ", self.x0.ravel(order="F").tolist())
             print("X data: ", self.x_traj.ravel(order="F").tolist())

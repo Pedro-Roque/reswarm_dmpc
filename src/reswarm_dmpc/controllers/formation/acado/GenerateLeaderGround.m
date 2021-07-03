@@ -7,10 +7,10 @@ followers = 1;
 N = 10;
 Ts = 0.5;
 
-m = 7.0; 
+m = 18.97; 
 moment_arm = 0.1;
 V_MAX = 0.5;
-J = diag([0.1083,0.1083,0.1083]); invJ = inv(J);
+J = diag([0.2517,0.2517,0.2517]); invJ = inv(J);
 
 % Exponential decay
 alpha = 4;
@@ -98,6 +98,6 @@ mpc.set( 'HOTSTART_QP',                 'YES'             	);
 mpc.set( 'LEVENBERG_MARQUARDT', 		 1e-10				); % -10
 
 % Export the solver
-mpc.exportCode('leader');
+mpc.exportCode('leader_gnd');
 delete test.cpp test_data_acadodata_M1.txt test_data_acadodata_M2.txt
 delete test_RUN.m test_RUN.mexa64

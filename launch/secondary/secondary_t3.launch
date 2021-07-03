@@ -28,7 +28,12 @@
             <remap from="~start_srv" to="start"/>
             <remap from="~kill_srv" to="kill"/>
         </node>
-        <node pkg="reswarm_dmpc" type="subleader_ctl_node" name="secondary_dmpc_ctl_node">  
+        <node pkg="reswarm_dmpc" type="subleader_ctl_node" name="secondary_dmpc_ctl_node" if="$(eval ground == false)">  
+            <remap from="get_control_srv" to="get_control"/>
+            <remap from="set_weights_srv" to="set_weights"/>
+            <remap from="kill_node_srv" to="kill"/>
+        </node>
+        <node pkg="reswarm_dmpc" type="subleader_ctl_node_gnd" name="secondary_dmpc_ctl_node" if="$(eval ground == true)">  
             <remap from="get_control_srv" to="get_control"/>
             <remap from="set_weights_srv" to="set_weights"/>
             <remap from="kill_node_srv" to="kill"/>

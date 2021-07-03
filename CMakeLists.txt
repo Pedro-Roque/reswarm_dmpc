@@ -3,9 +3,17 @@ project(reswarm_dmpc)
 
 set(qpoases ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers/formation/acado/qpoases)
 set(formation_src ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers/formation/acado)
+
+# ISS Tests
 set(acado_unit_test_src ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers/setpoint/acado/acado_setpoint)
 set(acado_leader_src ${formation_src}/leader)
 set(acado_subleader_src ${formation_src}/sub_leader)
+
+# Ground tests
+set(acado_unit_test_src_gnd ${acado_unit_test_src}_gnd)
+set(acado_leader_src_gnd ${acado_leader_src}_gnd)
+set(acado_subleader_src_gnd ${acado_subleader_src}_gnd)
+
 set(controllers_src ${CMAKE_CURRENT_SOURCE_DIR}/src/reswarm_dmpc/controllers)
 
 ## Find catkin macros and libraries
@@ -163,3 +171,115 @@ target_link_libraries(unit_test_ctl unittest_lib ${catkin_LIBRARIES})
 # Acado MPC solver node
 add_executable(unittest_ctl_node nodes/unittest_ctl_node.cpp)
 target_link_libraries(unittest_ctl_node unit_test_ctl unittest_lib )
+
+# ------------------------------------------------- #
+#                                                   #
+#                    GROUND TESTS                   #
+#                                                   #
+# ------------------------------------------------- #
+
+### LEADER MPC SECTION
+# 
+# Create the MPC solver library
+add_library(leader_mpc_lib_gnd
+  ${qpoases}/SRC/Bounds.cpp
+  ${qpoases}/SRC/Constraints.cpp
+  ${qpoases}/SRC/CyclingManager.cpp
+  ${qpoases}/SRC/Indexlist.cpp
+  ${qpoases}/SRC/MessageHandling.cpp
+  ${qpoases}/SRC/QProblem.cpp
+  ${qpoases}/SRC/QProblemB.cpp
+  ${qpoases}/SRC/SubjectTo.cpp
+  ${qpoases}/SRC/Utils.cpp
+  ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${acado_leader_src_gnd}/acado_qpoases_interface.cpp
+  ${acado_leader_src_gnd}/acado_integrator.c
+  ${acado_leader_src_gnd}/acado_solver.c
+  ${acado_leader_src_gnd}/acado_auxiliary_functions.c
+)
+
+target_include_directories(leader_mpc_lib_gnd PUBLIC 
+  ${acado_leader_src}/
+  ${qpoases}
+  ${qpoases}/INCLUDE
+  ${qpoases}/SRC 
+)
+
+# Acado MPC solver interface for leader
+add_library(leader_ctl_gnd ${controllers_src}/acado_wrapper.cpp)
+target_link_libraries(leader_ctl_gnd leader_mpc_lib_gnd ${catkin_LIBRARIES})
+
+# Acado MPC solver node
+add_executable(leader_ctl_node_gnd nodes/leader_ctl_node.cpp)
+target_link_libraries(leader_ctl_node_gnd leader_ctl_gnd leader_mpc_lib_gnd )
+
+
+### SUBLEADER MPC SECTION
+# 
+# Create the MPC solver library
+add_library(subleader_mpc_lib_gnd
+  ${qpoases}/SRC/Bounds.cpp
+  ${qpoases}/SRC/Constraints.cpp
+  ${qpoases}/SRC/CyclingManager.cpp
+  ${qpoases}/SRC/Indexlist.cpp
+  ${qpoases}/SRC/MessageHandling.cpp
+  ${qpoases}/SRC/QProblem.cpp
+  ${qpoases}/SRC/QProblemB.cpp
+  ${qpoases}/SRC/SubjectTo.cpp
+  ${qpoases}/SRC/Utils.cpp
+  ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${acado_subleader_src_gnd}/acado_qpoases_interface.cpp
+  ${acado_subleader_src_gnd}/acado_integrator.c
+  ${acado_subleader_src_gnd}/acado_solver.c
+  ${acado_subleader_src_gnd}/acado_auxiliary_functions.c
+)
+
+target_include_directories(subleader_mpc_lib_gnd PUBLIC 
+  ${acado_subleader_src_gnd}/
+  ${qpoases}
+  ${qpoases}/SRC
+  ${qpoases}/INCLUDE  
+)
+
+# Acado MPC solver interface for subleader
+add_library(subleader_ctl_gnd ${controllers_src}/acado_wrapper.cpp)
+target_link_libraries(subleader_ctl_gnd subleader_mpc_lib_gnd ${catkin_LIBRARIES})
+
+# Acado MPC solver node
+add_executable(subleader_ctl_node_gnd nodes/subleader_ctl_node.cpp)
+target_link_libraries(subleader_ctl_node_gnd subleader_ctl_gnd subleader_mpc_lib_gnd )
+
+### UNIT TEST MPC SECTION
+# 
+# Create the MPC solver library
+add_library(unittest_lib_gnd
+  ${qpoases}/SRC/Bounds.cpp
+  ${qpoases}/SRC/Constraints.cpp
+  ${qpoases}/SRC/CyclingManager.cpp
+  ${qpoases}/SRC/Indexlist.cpp
+  ${qpoases}/SRC/MessageHandling.cpp
+  ${qpoases}/SRC/QProblem.cpp
+  ${qpoases}/SRC/QProblemB.cpp
+  ${qpoases}/SRC/SubjectTo.cpp
+  ${qpoases}/SRC/Utils.cpp
+  ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${acado_unit_test_src_gnd}/acado_qpoases_interface.cpp
+  ${acado_unit_test_src_gnd}/acado_integrator.c
+  ${acado_unit_test_src_gnd}/acado_solver.c
+  ${acado_unit_test_src_gnd}/acado_auxiliary_functions.c
+)
+
+target_include_directories(unittest_lib_gnd PUBLIC 
+  ${acado_unit_test_src_gnd}/
+  ${qpoases}
+  ${qpoases}/INCLUDE
+  ${qpoases}/SRC 
+)
+
+# Acado MPC solver interface for leader
+add_library(unit_test_ctl_gnd ${controllers_src}/acado_wrapper.cpp)
+target_link_libraries(unit_test_ctl_gnd unittest_lib_gnd ${catkin_LIBRARIES})
+
+# Acado MPC solver node
+add_executable(unittest_ctl_gnd_node nodes/unittest_ctl_node.cpp)
+target_link_libraries(unittest_ctl_gnd_node unit_test_ctl_gnd unittest_lib_gnd )

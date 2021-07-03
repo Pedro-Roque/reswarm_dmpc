@@ -7,11 +7,10 @@ acadoSet('results_to_file', false);
 N = 10;
 Ts = 0.5;
 
-m = 6.0; 
+m = 7.0; 
 moment_arm = 0.1;
 V_MAX = 0.5;
-
-J = diag([2.3,2.4,21]*10^-2); invJ = inv(J);
+J = diag([0.1083,0.1083,0.1083]); invJ = inv(J);
 
 num_followers = 1;
 alpha = 4;
