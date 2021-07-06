@@ -22,7 +22,6 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   geometry_msgs
-  dynamic_reconfigure
   message_generation
 )
 
@@ -80,6 +79,7 @@ add_library(leader_mpc_lib
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_leader_src}/acado_qpoases_interface.cpp
   ${acado_leader_src}/acado_integrator.c
   ${acado_leader_src}/acado_solver.c
@@ -116,6 +116,7 @@ add_library(subleader_mpc_lib
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_subleader_src}/acado_qpoases_interface.cpp
   ${acado_subleader_src}/acado_integrator.c
   ${acado_subleader_src}/acado_solver.c
@@ -151,6 +152,7 @@ add_library(unittest_lib
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_unit_test_src}/acado_qpoases_interface.cpp
   ${acado_unit_test_src}/acado_integrator.c
   ${acado_unit_test_src}/acado_solver.c
@@ -192,6 +194,7 @@ add_library(leader_mpc_lib_gnd
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_leader_src_gnd}/acado_qpoases_interface.cpp
   ${acado_leader_src_gnd}/acado_integrator.c
   ${acado_leader_src_gnd}/acado_solver.c
@@ -228,6 +231,7 @@ add_library(subleader_mpc_lib_gnd
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_subleader_src_gnd}/acado_qpoases_interface.cpp
   ${acado_subleader_src_gnd}/acado_integrator.c
   ${acado_subleader_src_gnd}/acado_solver.c
@@ -263,6 +267,7 @@ add_library(unittest_lib_gnd
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_unit_test_src_gnd}/acado_qpoases_interface.cpp
   ${acado_unit_test_src_gnd}/acado_integrator.c
   ${acado_unit_test_src_gnd}/acado_solver.c
@@ -283,3 +288,7 @@ target_link_libraries(unit_test_ctl_gnd unittest_lib_gnd ${catkin_LIBRARIES})
 # Acado MPC solver node
 add_executable(unittest_ctl_gnd_node nodes/unittest_ctl_node.cpp)
 target_link_libraries(unittest_ctl_gnd_node unit_test_ctl_gnd unittest_lib_gnd )
+
+install_launch_files()
+install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
+install(PROGRAMS nodes/ros_node_leader.py nodes/ros_node_subleader.py nodes/ros_node_unit_tests.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
