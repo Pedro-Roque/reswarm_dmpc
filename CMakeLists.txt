@@ -289,6 +289,29 @@ target_link_libraries(unit_test_ctl_gnd unittest_lib_gnd ${catkin_LIBRARIES})
 add_executable(unittest_ctl_gnd_node nodes/unittest_ctl_node.cpp)
 target_link_libraries(unittest_ctl_gnd_node unit_test_ctl_gnd unittest_lib_gnd )
 
-install_launch_files()
-install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
-install(PROGRAMS nodes/ros_node_leader.py nodes/ros_node_subleader.py nodes/ros_node_unit_tests.py DESTINATION share/${PROJECT_NAME}/nodes PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
+if( ROAM_DEBIAN)
+  install_launch_files()
+  install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
+  # Install libs
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+  install(TARGETS  
+          unit_test_ctl_gnd unittest_lib_gnd
+          unit_test_ctl unittest_lib
+          subleader_mpc_lib_gnd subleader_ctl_gnd
+          subleader_mpc_lib subleader_ctl
+          leader_mpc_lib_gnd leader_ctl_gnd
+          leader_mpc_lib leader_ctl
+          DESTINATION lib)
+  # Install scripts and nodes
+  install(PROGRAMS nodes/ros_node_leader.py nodes/ros_node_subleader.py nodes/ros_node_unit_tests.py DESTINATION share/${PROJECT_NAME}/nodes PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
+  install(PROGRAMS
+          unittest_ctl_gnd_node
+          unittest_ctl_node
+          subleader_ctl_node_gnd
+          subleader_ctl_node
+          leader_ctl_node_gnd
+          leader_ctl_node
+          DESTINATION share/${PROJECT_NAME}/nodes PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
+endif()
