@@ -291,4 +291,4 @@ target_link_libraries(unittest_ctl_gnd_node unit_test_ctl_gnd unittest_lib_gnd )
 
 install_launch_files()
 install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
-install(PROGRAMS nodes/ros_node_leader.py nodes/ros_node_subleader.py nodes/ros_node_unit_tests.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
+install(PROGRAMS nodes/ros_node_leader.py nodes/ros_node_subleader.py nodes/ros_node_unit_tests.py DESTINATION share/${PROJECT_NAME}/nodes PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
