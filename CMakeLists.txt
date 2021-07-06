@@ -50,11 +50,11 @@ catkin_package(
 )
 
 # TODO(@Pedro-Roque): Set ARM optimizations for MLP
-# if("${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "armv7l")
-#   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mfpu=neon -mfloat-abi=hard -funsafe-math-optimizations")
-#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mfpu=neon -mfloat-abi=hard -funsafe-math-optimizations")
-#   message("enabling ARM neon optimizations")
-# endif()
+if(RESWARM_CC and ROAM_DEBIAN)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mtune=cortex-a9 -mfpu=neon  -mfloat-abi=hard -funsafe-math-optimizations")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard -funsafe-math-optimizations")
+  message("enabling ARM neon optimizations")
+endif()
 
 # Set default include paths and directories
 include_directories(
