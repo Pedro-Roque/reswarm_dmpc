@@ -306,7 +306,7 @@ if(ROAM_DEBIAN)
           DESTINATION lib)
   # Install scripts and nodes
   install(PROGRAMS nodes/ros_node_leader.py nodes/ros_node_subleader.py nodes/ros_node_unit_tests.py DESTINATION share/${PROJECT_NAME}/nodes PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
-  install(PROGRAMS
+  install(TARGETS
           unittest_ctl_gnd_node
           unittest_ctl_node
           subleader_ctl_node_gnd
