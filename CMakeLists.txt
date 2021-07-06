@@ -289,7 +289,7 @@ target_link_libraries(unit_test_ctl_gnd unittest_lib_gnd ${catkin_LIBRARIES})
 add_executable(unittest_ctl_gnd_node nodes/unittest_ctl_node.cpp)
 target_link_libraries(unittest_ctl_gnd_node unit_test_ctl_gnd unittest_lib_gnd )
 
-if( ROAM_DEBIAN)
+if(ROAM_DEBIAN)
   install_launch_files()
   install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
   # Install libs
