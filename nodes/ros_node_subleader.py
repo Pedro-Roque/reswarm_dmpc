@@ -644,6 +644,7 @@ class DistributedMPC(object):
         msg.out_predicted_state = self.acado_out_predicted_state
         msg.out_predicted_input = self.acado_out_predicted_input
         self.solver_status_pub.publish(msg)
+        return
 
     def run(self):
         """
