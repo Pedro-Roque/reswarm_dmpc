@@ -28,6 +28,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES 
   InformationStamped.msg
+  AcadoStatusStamped.msg
+  DMPCTestStatusStamped.msg
 )
 
 add_service_files(
