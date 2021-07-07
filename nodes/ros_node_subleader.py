@@ -327,26 +327,16 @@ class DistributedMPC(object):
 
         self.weights_size = 3 + 3 * 1 + 3 + 3 + 6
         self.weights_size_N = 3 + 3 * 1 + 3 + 3
-        rpos_l_weights = np.ones((3 * 1,))
-        rpos_f_weights = np.ones((3 * 1,)) * 0.05
-        verr_weights = np.ones((3,)) * 10
-        att_weights = np.ones((3,)) * 10
-        control_weights = np.array([5, 5, 5, 1, 1, 1]) * 10
 
-        self.ln_weights = np.concatenate((rpos_l_weights,
-                                          rpos_f_weights,
-                                          verr_weights,
-                                          att_weights,
-                                          control_weights), axis=0)
-
-        self.V_weights = np.concatenate((rpos_l_weights,
-                                         rpos_f_weights,
-                                         verr_weights,
-                                         att_weights), axis=0) * 200
+        ln_weights = rospy.get_param("W")
+        V_weights = rospy.get_param("WN")
+        K_V = rospy.get_param("WN_gain")
+        self.ln_weights = np.diag(ln_weights).reshape(self.weights_size, self.weights_size)
+        self.V_weights = np.diag(V_weights).reshape(self.weights_size_N, self.weights_size_N) * K_V
 
         srv = reswarm_dmpc.srv.SetWeightsRequest()
-        srv.W = np.diag(self.ln_weights).ravel(order="F").tolist()
-        srv.WN = np.diag(self.V_weights).ravel(order="F").tolist()
+        srv.W = self.ln_weights.ravel(order="F").tolist()
+        srv.WN = self.V_weights.ravel(order="F").tolist()
 
         if DEBUG:
             print("Weights matrices size:")

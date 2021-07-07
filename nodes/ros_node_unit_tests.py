@@ -14,7 +14,7 @@ import reswarm_msgs.msg
 import ff_msgs.msg
 import ff_msgs.srv
 
-DEBUG = True
+DEBUG = False
 OVERRIDE_TS = False
 
 
@@ -175,7 +175,6 @@ class UnitTestsMPC(object):
         if state:
             ans.success = True
             ans.message = "Node started!"
-            # Create reference:
             self.t0 = rospy.get_time()
             # Disable onboard controller
             obc = std_srvs.srv.SetBoolRequest()
@@ -287,25 +286,16 @@ class UnitTestsMPC(object):
 
         self.weights_size = 3 + 3 + 3 + 3 + 6
         self.weights_size_N = 3 + 3 + 3 + 3
-        pos_weights = np.ones((3,)) * 100
-        verr_weights = np.ones((3,)) * 10
-        att_weights = np.ones((3,)) * 30
-        werr_weights = np.ones((3,)) * 100
-        control_weights = np.array([5, 5, 5, 1, 1, 1]) * 10
 
-        self.ln_weights = np.concatenate((pos_weights,
-                                          verr_weights,
-                                          att_weights,
-                                          werr_weights,
-                                          control_weights), axis=0)
+        ln_weights = rospy.get_param("W")
+        V_weights = rospy.get_param("WN")
+        K_V = rospy.get_param("WN_gain")
+        self.ln_weights = np.diag(ln_weights).reshape(self.weights_size, self.weights_size)
+        self.V_weights = np.diag(V_weights).reshape(self.weights_size_N, self.weights_size_N) * K_V
 
-        self.V_weights = np.concatenate((pos_weights,
-                                         verr_weights,
-                                         att_weights,
-                                         werr_weights), axis=0) * 200
-
-        srv.W = np.diag(self.ln_weights).ravel(order="F").tolist()
-        srv.WN = np.diag(self.V_weights).ravel(order="F").tolist()
+        srv = reswarm_dmpc.srv.SetWeightsRequest()
+        srv.W = self.ln_weights.ravel(order="F").tolist()
+        srv.WN = self.V_weights.ravel(order="F").tolist()
 
         if DEBUG:
             print("Weights matrices size:")
@@ -405,6 +395,7 @@ class UnitTestsMPC(object):
         val = self.check_data_validity()
         rospy.loginfo("Validity: " + str(val))
         if val is False:
+            self.t0 = rospy.get_time()
             return val, 0
 
         # Valid data, so we proceed
@@ -622,7 +613,7 @@ class UnitTestsMPC(object):
         """
         Main operation loop.
         """
-
+        nh_name = rospy.get_name() + "\n"
         while not rospy.is_shutdown():
             # Check if should kill node
             if self.kill is True:
@@ -639,13 +630,13 @@ class UnitTestsMPC(object):
             # Only do something when started
             t = rospy.get_time() - self.t0
             if self.start is False:
-                rospy.loginfo("Sleeping...")
+                rospy.loginfo(nh_name + "Sleeping...")
                 self.rate.sleep()
                 continue
 
             if t > self.expiration_time:
                 self.test_finished = True
-                rospy.loginfo("Finished!")
+                rospy.loginfo(nh_name + "Finished!")
                 self.rate.sleep()
                 continue
 
@@ -655,23 +646,24 @@ class UnitTestsMPC(object):
                 self.rate.sleep()
                 continue
 
-            rospy.loginfo("Looping!")
+            rospy.loginfo(nh_name + "Looping!")
 
             # Start the RTI Loop
             tin = rospy.get_time()
             temp_kkt = Inf
             tries = 0
             while (temp_kkt > 100 or np.isnan(temp_kkt)) and tries < 10:
-                rospy.loginfo("[RTI Loop] Trial: " + str(tries))
+                rospy.loginfo(nh_name + "[RTI Loop] Trial: " + str(tries))
                 ans = self.get_control(req)
                 temp_kkt = ans.kkt_value
                 if np.isnan(temp_kkt) or tries == 9:
-                    rospy.logwarn("NaN detected on solver output.")
+                    print(nh_name + "Request: ", req)
+                    rospy.logwarn(nh_name + "NaN detected on solver output.")
                     req = self.reset_control_request(req)
                 else:
                     req.predicted_state = self.propagate_predicted_state(ans)
                     req.predicted_input = np.asarray(ans.predicted_input).reshape((self.Nu * self.N, 1)).ravel(order="F").tolist()
-                rospy.loginfo("[RTI Loop] Solver kkT: " + str(ans.kkt_value))
+                rospy.loginfo(nh_name + "[RTI Loop] Solver kkT: " + str(ans.kkt_value))
                 tries += 1
             tout = rospy.get_time() - tin
             rospy.loginfo("Time for control: " + str(tout))
@@ -682,9 +674,9 @@ class UnitTestsMPC(object):
             if DEBUG:
                 print("X traj: ", self.x_traj.ravel(order="F").tolist())
                 print("U traj: ", self.u_traj.ravel(order="F").tolist())
-            rospy.loginfo("Solver status: " + str(ans.status))
-            rospy.loginfo("Solver cpuTime: " + str(ans.solution_time))
-            rospy.loginfo("Solver Cost: " + str(ans.objective_value))
+            rospy.loginfo(nh_name + "Solver status: " + str(ans.status))
+            rospy.loginfo(nh_name + "Solver cpuTime: " + str(ans.solution_time))
+            rospy.loginfo(nh_name + "Solver Cost: " + str(ans.objective_value))
 
             # Publish solver output
             self.solver_status = ans.status
