@@ -35,7 +35,7 @@ class DistributedMPC(object):
         self.start = False
         self.test_finished = False
         # Solver Status
-        self.solver_status = False
+        self.solver_status = -1
         self.solver_cost_value = -1
         self.solver_kkt_value = -1
         self.solver_sol_time = -1

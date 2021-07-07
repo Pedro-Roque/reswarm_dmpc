@@ -36,7 +36,7 @@ class DistributedMPC(object):
         self.start = False
         self.test_finished = False
         # Solver Status
-        self.solver_status = False
+        self.solver_status = -1
         self.solver_cost_value = -1
         self.solver_kkt_value = -1
         self.solver_sol_time = -1
@@ -598,7 +598,7 @@ class DistributedMPC(object):
 
             t = rospy.get_time() - self.t0
             if t > self.expiration_time:
-                self.publish_test_finish()
+                self.test_finished = True
                 rospy.loginfo("Finished!")
                 self.rate.sleep()
                 continue

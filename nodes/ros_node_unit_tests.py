@@ -32,6 +32,13 @@ class UnitTestsMPC(object):
         self.dt = 0.5
         self.rate = rospy.Rate(1.0 / self.dt)
         self.start = False
+        self.test_finished = False
+        # Solver Status
+        self.solver_status = -1
+        self.solver_cost_value = -1
+        self.solver_kkt_value = -1
+        self.solver_sol_time = -1
+        # Other Initializations
         self.kill = False
         self.state = np.zeros((13, 1))
         self.state[9] = 1
@@ -225,9 +232,13 @@ class UnitTestsMPC(object):
                                                ff_msgs.msg.FlightMode,
                                                queue_size=1)
 
-        self.reswarm_status_pub = rospy.Publisher("~reswarm_status",
-                                                  reswarm_msgs.msg.ReswarmStatus,
-                                                  queue_size=1)
+        self.test_status_pub = rospy.Publisher("~test_status",
+                                               reswarm_dmpc.msg.DMPCTestStatusStamped,
+                                               queue_size=1)
+
+        self.solver_status_pub = rospy.Publisher("~solver_status",
+                                                 reswarm_dmpc.msg.AcadoStatusStamped,
+                                                 queue_size=1)
 
         pass
 
@@ -420,6 +431,12 @@ class UnitTestsMPC(object):
         srv.predicted_input = self.u_traj.ravel(order="F").tolist()
         srv.online_data = self.online_data.ravel(order="F").tolist()
 
+        # Collect data for Acado Status
+        self.acado_in_initial_state = srv.initial_state
+        self.acado_in_predicted_state = srv.predicted_state
+        self.acado_in_predicted_input = srv.predicted_input
+        self.acado_in_online_data = srv.online_data
+
         if DEBUG:
             print("Data shapes on sending:")
             print("X0: ", len(srv.initial_state))
@@ -564,14 +581,41 @@ class UnitTestsMPC(object):
             predicted_state[6:10, i] = q / np.linalg.norm(q)
         return predicted_state.ravel(order="F").tolist()
 
-    def publish_test_finish(self):
+    def publish_test_status(self):
         """
         Helper function to publish the finished test message.
         """
 
-        msg = reswarm_msgs.msg.ReswarmStatus()
-        msg.test_finished = True
-        self.reswarm_status_pub.publish(msg)
+        msg = reswarm_dmpc.msg.DMPCTestStatusStamped()
+        msg.header.stamp = rospy.Time.now()
+        msg.test_started = self.start
+        msg.test_finished = self.test_finished
+        msg.solver_status = self.solver_status
+        msg.cost_value = self.solver_cost_value
+        msg.kkt_value = self.solver_kkt_value
+        msg.sol_time = self.solver_sol_time
+        self.test_status_pub.publish(msg)
+        return
+
+    def publish_acado_status(self):
+        """
+        Helper method to publish Solver Status for data collection
+        """
+        msg = reswarm_dmpc.msg.AcadoStatusStamped()
+        msg.header.stamp = rospy.Time.now()
+        # Acado input
+        msg.initial_state = self.acado_in_initial_state
+        msg.in_predicted_state = self.acado_in_predicted_state
+        msg.in_predicted_input = self.acado_in_predicted_input
+        msg.online_data = self.acado_in_online_data
+        # Acado ouput
+        msg.status = self.solver_status
+        msg.solution_time = self.solver_sol_time
+        msg.kkt_value = self.solver_kkt_value
+        msg.objective_value = self.solver_cost_value
+        msg.out_predicted_state = self.acado_out_predicted_state
+        msg.out_predicted_input = self.acado_out_predicted_input
+        self.solver_status_pub.publish(msg)
         return
 
     def run(self):
@@ -585,6 +629,9 @@ class UnitTestsMPC(object):
                 rospy.signal_shutdown("Unit test node shutting down...")
                 exit()
 
+            # Publish Status
+            self.publish_test_status()
+
             # Broadcast static info
             gs_data = self.create_broadcast_message()
             self.broadcast_pub.publish(gs_data)
@@ -597,7 +644,7 @@ class UnitTestsMPC(object):
                 continue
 
             if t > self.expiration_time:
-                self.publish_test_finish()
+                self.test_finished = True
                 rospy.loginfo("Finished!")
                 self.rate.sleep()
                 continue
@@ -639,6 +686,16 @@ class UnitTestsMPC(object):
             rospy.loginfo("Solver cpuTime: " + str(ans.solution_time))
             rospy.loginfo("Solver Cost: " + str(ans.objective_value))
 
+            # Publish solver output
+            self.solver_status = ans.status
+            self.solver_cost_value = ans.objective_value
+            self.solver_kkt_value = ans.kkt_value
+            self.solver_sol_time = ans.solution_time
+
+            # Collect Trajectories
+            self.acado_out_predicted_state = self.x_traj.ravel(order="F").tolist()
+            self.acado_out_predicted_input = self.u_traj.ravel(order="F").tolist()
+
             # Create control input message
             u = self.create_control_message()
             fm = self.create_flight_mode_message()
@@ -646,6 +703,7 @@ class UnitTestsMPC(object):
             # Publish control
             self.control_pub.publish(u)
             self.flight_mode_pub.publish(fm)
+            self.publish_acado_status()
             self.rate.sleep()
     pass
 
