@@ -22,13 +22,14 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   geometry_msgs
-  dynamic_reconfigure
   message_generation
 )
 
 add_message_files(
   FILES 
   InformationStamped.msg
+  AcadoStatusStamped.msg
+  DMPCTestStatusStamped.msg
 )
 
 add_service_files(
@@ -37,7 +38,6 @@ add_service_files(
   SetWeights.srv
 )
 
-# TODO: Generate dynamic reconfigure parameters in the 'cfg' folder
 # generate_dynamic_reconfigure_options(
 #   cfg/weightGenerationExample.cfg
 # )
@@ -49,13 +49,6 @@ generate_messages(DEPENDENCIES std_msgs geometry_msgs)
 catkin_package(
   CATKIN_DEPENDS roscpp rospy std_msgs message_runtime geometry_msgs
 )
-
-# TODO(@Pedro-Roque): Set ARM optimizations for MLP
-# if("${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "armv7l")
-#   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mfpu=neon -mfloat-abi=hard -funsafe-math-optimizations")
-#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mfpu=neon -mfloat-abi=hard -funsafe-math-optimizations")
-#   message("enabling ARM neon optimizations")
-# endif()
 
 # Set default include paths and directories
 include_directories(
@@ -80,6 +73,7 @@ add_library(leader_mpc_lib
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_leader_src}/acado_qpoases_interface.cpp
   ${acado_leader_src}/acado_integrator.c
   ${acado_leader_src}/acado_solver.c
@@ -116,6 +110,7 @@ add_library(subleader_mpc_lib
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_subleader_src}/acado_qpoases_interface.cpp
   ${acado_subleader_src}/acado_integrator.c
   ${acado_subleader_src}/acado_solver.c
@@ -151,6 +146,7 @@ add_library(unittest_lib
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_unit_test_src}/acado_qpoases_interface.cpp
   ${acado_unit_test_src}/acado_integrator.c
   ${acado_unit_test_src}/acado_solver.c
@@ -192,6 +188,7 @@ add_library(leader_mpc_lib_gnd
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_leader_src_gnd}/acado_qpoases_interface.cpp
   ${acado_leader_src_gnd}/acado_integrator.c
   ${acado_leader_src_gnd}/acado_solver.c
@@ -228,6 +225,7 @@ add_library(subleader_mpc_lib_gnd
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_subleader_src_gnd}/acado_qpoases_interface.cpp
   ${acado_subleader_src_gnd}/acado_integrator.c
   ${acado_subleader_src_gnd}/acado_solver.c
@@ -263,6 +261,7 @@ add_library(unittest_lib_gnd
   ${qpoases}/SRC/SubjectTo.cpp
   ${qpoases}/SRC/Utils.cpp
   ${qpoases}/SRC/EXTRAS/SolutionAnalysis.cpp
+  ${qpoases}/SRC/acado_dummy_file.c
   ${acado_unit_test_src_gnd}/acado_qpoases_interface.cpp
   ${acado_unit_test_src_gnd}/acado_integrator.c
   ${acado_unit_test_src_gnd}/acado_solver.c
@@ -283,3 +282,30 @@ target_link_libraries(unit_test_ctl_gnd unittest_lib_gnd ${catkin_LIBRARIES})
 # Acado MPC solver node
 add_executable(unittest_ctl_gnd_node nodes/unittest_ctl_node.cpp)
 target_link_libraries(unittest_ctl_gnd_node unit_test_ctl_gnd unittest_lib_gnd )
+
+if(ROAM_DEBIAN)
+  install_launch_files()
+  install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
+  # Install libs
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+  install(TARGETS  
+          unit_test_ctl_gnd unittest_lib_gnd
+          unit_test_ctl unittest_lib
+          subleader_mpc_lib_gnd subleader_ctl_gnd
+          subleader_mpc_lib subleader_ctl
+          leader_mpc_lib_gnd leader_ctl_gnd
+          leader_mpc_lib leader_ctl
+          DESTINATION lib)
+  # Install scripts and nodes
+  install(PROGRAMS nodes/ros_node_leader.py nodes/ros_node_subleader.py nodes/ros_node_unit_tests.py DESTINATION share/${PROJECT_NAME}/nodes PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
+  install(TARGETS
+          unittest_ctl_gnd_node
+          unittest_ctl_node
+          subleader_ctl_node_gnd
+          subleader_ctl_node
+          leader_ctl_node_gnd
+          leader_ctl_node
+          DESTINATION share/${PROJECT_NAME}/nodes PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
+endif()
