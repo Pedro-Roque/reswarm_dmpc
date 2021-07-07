@@ -64,11 +64,11 @@ ocp.minimizeLSQ(  W, J1 );
 ocp.minimizeLSQEndTerm(  WN, J1(1:end-6) );
 
 ocp.setModel(dynamicsVec);
-ocp.subjectTo( -0.6 <= u11 <= 0.6);
+ocp.subjectTo( -0.3 <= u11 <= 0.3);
 ocp.subjectTo( -0.3 <= u12 <= 0.3); 
-ocp.subjectTo( u13 == 0); 
-ocp.subjectTo( u14 == 0); 
-ocp.subjectTo( -0.3*moment_arm <= u15 <= 0.3*moment_arm); 
+ocp.subjectTo( u13 == 0.0); 
+ocp.subjectTo( u14 == 0.0); 
+ocp.subjectTo( u15 == 0.0); 
 ocp.subjectTo( -0.3*moment_arm <= u16 <= 0.3*moment_arm); 
 ocp.subjectTo( -V_MAX <= v1 <= V_MAX ); 
  
