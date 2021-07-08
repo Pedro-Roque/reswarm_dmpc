@@ -290,6 +290,8 @@ if(ROAM_DEBIAN)
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+  # Install src directory
+  install(DIRECTORY src/ DESTINATION share/${PROJECT_NAME}/src PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
   install(TARGETS  
           unit_test_ctl_gnd unittest_lib_gnd
           unit_test_ctl unittest_lib
