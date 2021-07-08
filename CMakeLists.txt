@@ -291,7 +291,7 @@ if(ROAM_DEBIAN)
     DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
   # Install src directory
-  install(DIRECTORY src/ DESTINATION share/${PROJECT_NAME}/src PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
+  install(DIRECTORY src/ DESTINATION share/${PROJECT_NAME}/src)
   install(TARGETS  
           unit_test_ctl_gnd unittest_lib_gnd
           unit_test_ctl unittest_lib
