@@ -5,7 +5,7 @@ from numpy.core.numeric import Inf
 import rospy
 
 from reswarm_dmpc.reference_generation.sinusoidal import SinusoidalReference
-from reswarm_dmpc.util import *
+from reswarm_dmpc.util_iss import *
 
 import std_srvs.srv
 import reswarm_dmpc.srv
