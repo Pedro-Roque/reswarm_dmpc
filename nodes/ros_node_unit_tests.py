@@ -4,7 +4,7 @@ import numpy as np
 from numpy.core.numeric import Inf
 import rospy
 
-from reswarm_dmpc.util import *
+from reswarm_dmpc.util_iss import *
 
 import geometry_msgs.msg
 import std_srvs.srv
@@ -103,7 +103,7 @@ class UnitTestsMPC(object):
         :type msg: geometry_msgs.msg.PoseStamped
         """
 
-        self.pose_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.pose_ts = rospy.get_time()
         self.pose = np.array([[msg.pose.position.x,
                                msg.pose.position.y,
                                msg.pose.position.z,
@@ -124,7 +124,7 @@ class UnitTestsMPC(object):
         :type msg: geometry_msgs.msg.TwistStamped
         """
 
-        self.twist_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.twist_ts = rospy.get_time()
         self.twist = np.array([[msg.twist.linear.x,
                                 msg.twist.linear.y,
                                 msg.twist.linear.z,
@@ -144,7 +144,7 @@ class UnitTestsMPC(object):
         :type msg: reswarm_dmpc.msg.InformationStamped
         """
 
-        self.info_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.info_ts = rospy.get_time()
         self.information_vec = np.zeros((6,))
 
         # De-serialize data
@@ -325,6 +325,9 @@ class UnitTestsMPC(object):
             pos_val = True
         if rospy.get_time() - self.twist_ts < self.ts_threshold or OVERRIDE_TS:
             vel_val = True
+        # Time delta
+        dt = rospy.get_time() - self.info_ts
+        rospy.logerr("TIME DELTA: " + str(dt) + " ; THRESH: " + str(self.ts_threshold))
         if rospy.get_time() - self.info_ts < self.ts_threshold or OVERRIDE_TS:
             rel_val = True
 
