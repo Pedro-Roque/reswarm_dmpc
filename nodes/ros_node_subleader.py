@@ -113,7 +113,7 @@ class DistributedMPC(object):
         :type msg: geometry_msgs.msg.PoseStamped
         """
 
-        self.pose_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.pose_ts = rospy.get_time()
         self.pose = np.array([[msg.pose.position.x,
                                msg.pose.position.y,
                                msg.pose.position.z,
@@ -134,7 +134,7 @@ class DistributedMPC(object):
         :type msg: geometry_msgs.msg.TwistStamped
         """
 
-        self.twist_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.twist_ts = rospy.get_time()
         self.twist = np.array([[msg.twist.linear.x,
                                 msg.twist.linear.y,
                                 msg.twist.linear.z,
@@ -153,7 +153,7 @@ class DistributedMPC(object):
         :param msg: local leader position
         :type msg: geometry_msgs.msg.PoseStamped
         """
-        self.l_position_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.l_position_ts = rospy.get_time()
         self.l_position = np.array([[msg.pose.position.x,
                                      msg.pose.position.y,
                                      msg.pose.position.z]]).T
@@ -167,7 +167,7 @@ class DistributedMPC(object):
         :type msg: geometry_msgs.msg.PoseStamped
         """
 
-        self.f1_position_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.f1_position_ts = rospy.get_time()
         self.f1_position = np.array([[msg.pose.position.x,
                                       msg.pose.position.y,
                                       msg.pose.position.z]]).T
@@ -180,7 +180,7 @@ class DistributedMPC(object):
         :param msg: information vector with current and target velocities.
         :type msg: reswarm_dmpc.msg.InformationStamped
         """
-        self.information_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.information_ts = rospy.get_time()
         self.information_vec = np.zeros((6,))
 
         # De-serialize data

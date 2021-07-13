@@ -2,6 +2,7 @@
 <launch>
     <arg name="nspace" default=""/>
     <arg name="ground" default="false"/>
+    <arg name="partner" default="honey"/>
 
     <group ns="$(arg nspace)">
         <!-- Select params for ground/iss tests -->
@@ -12,9 +13,9 @@
             <!-- Topics -->
             <remap from="~pose_topic" to="loc/pose"/>
             <remap from="~twist_topic" to="loc/twist"/>
-            <remap from="~local_leader_pose" to="honey/gnc/ekf"/>
+            <remap from="~local_leader_pose" to="$(arg partner)/gnc/ekf"/>
             <remap from="~follower_pose" to="queen/gnc/ekf"/>
-            <remap from="~leader_information" to="honey/gs/data"/>
+            <remap from="~leader_information" to="$(arg partner)/gs/data"/>
             <remap from="~control_topic" to="gnc/ctl/command"/>
             <remap from="~broadcast_information" to="gs/data"/>
             <remap from="~flight_mode" to="mob/flight_mode"/>

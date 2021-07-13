@@ -115,7 +115,7 @@ class DistributedMPC(object):
         :type msg: geometry_msgs.msg.PoseStamped
         """
 
-        self.state_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.state_ts = rospy.get_time()
         # Update state variable
         self.state = np.array([[msg.pose.position.x,
                                msg.pose.position.y,
@@ -142,7 +142,7 @@ class DistributedMPC(object):
         :type msg: geometry_msgs.msg.PoseStamped
         """
 
-        self.f1_position_ts = msg.header.stamp.secs + 1e-9 * msg.header.stamp.nsecs
+        self.f1_position_ts = rospy.get_time()
         self.f1_position = np.array([[msg.pose.position.x,
                                       msg.pose.position.y,
                                       msg.pose.position.z]]).T
