@@ -3,12 +3,20 @@
     <arg name="nspace" default="/"/>
     <arg name="partner" default="honey"/>
     <arg name="ground" default="false"/>
+    <arg name="param" default="1"/>
     
     <!-- Launch astrobee unit test node-->
     <group ns="$(arg nspace)">
+    
         <!-- Select params for ground/iss tests -->
-        <rosparam file="$(find reswarm_dmpc)/config/bumble/test_translation_gnd.yaml" command="load" ns="" if="$(eval ground == true)"/>
-        <rosparam file="$(find reswarm_dmpc)/config/bumble/test_translation_iss.yaml" command="load" ns="" if="$(eval ground == false)"/>
+        <group if="$(eval ground == true)">
+            <rosparam file="$(find reswarm_dmpc)/config/bumble/test_translation_gnd.yaml" command="load" ns="" if="$(eval param == 1)"/>
+            <rosparam file="$(find reswarm_dmpc)/config/bumble/test_translation_gnd_$(arg param).yaml" command="load" ns="" unless="$(eval param == 1)"/>
+        </group>
+        <group if="$(eval ground == false)">
+            <rosparam file="$(find reswarm_dmpc)/config/bumble/test_translation_iss.yaml" command="load" ns="" if="$(eval param == 1)"/>
+            <rosparam file="$(find reswarm_dmpc)/config/bumble/test_translation_iss_$(arg param).yaml" command="load" ns="" unless="$(eval param == 1)"/>
+        </group>
 
         <node pkg="reswarm_dmpc" type="ros_node_unit_tests.py" name="secondary_dmpc_iface" output="screen">
             <!-- Topics -->

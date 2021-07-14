@@ -3,11 +3,18 @@
     <arg name="nspace" default="/"/>
     <arg name="ground" default="false"/>
     <arg name="partner" default="honey"/>
+    <arg name="param" default="3"/>
 
     <group ns="$(arg nspace)">
         <!-- Select params for ground/iss tests -->
-        <rosparam file="$(find reswarm_dmpc)/config/bumble/subleader_iface_gnd.yaml" command="load" ns="" if="$(eval ground == true)"/>
-        <rosparam file="$(find reswarm_dmpc)/config/bumble/subleader_iface_iss.yaml" command="load" ns="" if="$(eval ground == false)"/>
+        <group if="$(eval ground == true)">
+            <rosparam file="$(find reswarm_dmpc)/config/bumble/leader_iface_gnd.yaml" command="load" ns="" if="$(eval param == 3)"/>
+            <rosparam file="$(find reswarm_dmpc)/config/bumble/leader_iface_gnd_$(arg param).yaml" command="load" ns="" unless="$(eval param == 3)"/>
+        </group>
+        <group if="$(eval ground == false)">
+            <rosparam file="$(find reswarm_dmpc)/config/bumble/leader_iface_iss.yaml" command="load" ns="" if="$(eval param == 3)"/>
+            <rosparam file="$(find reswarm_dmpc)/config/bumble/leader_iface_iss_$(arg param).yaml" command="load" ns="" unless="$(eval param == 3)"/>
+        </group>
 
         <node pkg="reswarm_dmpc" type="ros_node_subleader.py" name="secondary_dmpc_iface" output="screen">
             <!-- Topics -->
