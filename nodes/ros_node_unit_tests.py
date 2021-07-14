@@ -43,7 +43,7 @@ class UnitTestsMPC(object):
         self.state = np.zeros((13, 1))
         self.state[9] = 1
         self.rg = None
-        self.t0 = 0.0
+        self.t0 = rospy.get_time()
         self.f1_position = None
         self.twist = None
         self.pose = None
@@ -327,7 +327,6 @@ class UnitTestsMPC(object):
             vel_val = True
         # Time delta
         dt = rospy.get_time() - self.info_ts
-        rospy.logerr("TIME DELTA: " + str(dt) + " ; THRESH: " + str(self.ts_threshold))
         if rospy.get_time() - self.info_ts < self.ts_threshold or OVERRIDE_TS:
             rel_val = True
 

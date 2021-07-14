@@ -44,7 +44,7 @@ class DistributedMPC(object):
         self.state = np.zeros((13, 1))
         self.state[9] = 1
         self.rg = None
-        self.t0 = 0.0
+        self.t0 = rospy.get_time()
         self.f1_position = None
         self.twist = None
         self.pose = None
