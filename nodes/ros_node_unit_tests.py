@@ -631,9 +631,11 @@ class UnitTestsMPC(object):
 
             # Only do something when started
             t = rospy.get_time() - self.t0
+            rospy.logwarn("Time since epoch: " + str(t) + " - Expiraton time: " + str(self.expiration_time))
             if self.start is False:
                 rospy.loginfo(nh_name + "Sleeping...")
                 self.rate.sleep()
+                self.t0 = rospy.get_time()
                 continue
 
             if t > self.expiration_time:

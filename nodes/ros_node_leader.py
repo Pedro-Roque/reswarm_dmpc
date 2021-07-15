@@ -588,9 +588,11 @@ class DistributedMPC(object):
             if self.start is False:
                 self.rate.sleep()
                 rospy.loginfo("Sleeping...")
+                self.t0 = rospy.get_time()
                 continue
 
             t = rospy.get_time() - self.t0
+            rospy.logwarn("[L] Time since epoch: " + str(t) + " - Expiraton time: " + str(self.expiration_time))
             if t > self.expiration_time:
                 self.test_finished = True
                 rospy.loginfo("Finished!")
