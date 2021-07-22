@@ -5,7 +5,7 @@ acadoSet('results_to_file', false);
 
 %% NMPC parameters solver
 N = 10;
-Ts = 0.5;
+Ts = 0.1;
 
 m = 18.97; 
 moment_arm = 0.1;

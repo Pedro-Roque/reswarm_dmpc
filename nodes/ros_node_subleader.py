@@ -30,8 +30,8 @@ class DistributedMPC(object):
         Initialize Distributed MPC Class
         """
 
-        self.dt = 1
-        self.rate = rospy.Rate(5)
+        self.dt = 0.1
+        self.rate = rospy.Rate(1.0 / self.dt)
         self.start = False
         self.test_finished = False
         # Solver Status
