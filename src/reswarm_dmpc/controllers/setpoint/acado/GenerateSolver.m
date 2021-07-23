@@ -5,18 +5,12 @@ acadoSet('results_to_file', false);
 followers = 1;
 %% NMPC parameters solver
 N = 10;
-Ts = 0.5;
+Ts = 0.1;
 
-m = 6.0; 
+m = 9.584; 
 moment_arm = 0.1;
 V_MAX = 0.5;
-
-% Exponential decay
-alpha = 4;
-
-epsilon = 0.00001;
-
-J = diag([2.3,2.4,21]*10^-2); invJ = inv(J);
+J = diag([0.153427995,0.14271405,0.162302759]); invJ = inv(J);
 
 %% Problem setup
 DifferentialState p1(3) v1(3) q1(4) w1(3) 

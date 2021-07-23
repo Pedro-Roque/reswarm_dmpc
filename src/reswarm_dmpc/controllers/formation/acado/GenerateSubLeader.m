@@ -5,12 +5,12 @@ acadoSet('results_to_file', false);
 
 %% NMPC parameters solver
 N = 10;
-Ts = 0.5;
+Ts = 0.1;
 
-m = 7.0; 
+m = 9.584; 
 moment_arm = 0.1;
 V_MAX = 0.5;
-J = diag([0.1083,0.1083,0.1083]); invJ = inv(J);
+J = diag([0.153427995,0.14271405,0.162302759]); invJ = inv(J);
 
 num_followers = 1;
 alpha = 4;
