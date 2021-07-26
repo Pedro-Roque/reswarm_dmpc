@@ -272,8 +272,8 @@ class DistributedMPC(object):
 
         srv = reswarm_dmpc.srv.SetWeightsRequest()
 
-        self.weights_size = 3 + 3 + 3 * 1 + 6
-        self.weights_size_N = 3 + 3 + 3 * 1
+        self.weights_size = 3 + 3 + 3 + 3 + 3 * 1 + 6
+        self.weights_size_N = 3 + 3 + 3 + 3 + 3 * 1
 
         ln_weights = rospy.get_param("W")
         V_weights = rospy.get_param("WN")
@@ -349,7 +349,7 @@ class DistributedMPC(object):
             return val, 0
 
         # Valid data, so we proceed
-        self.target_vel = self.rg.get_vel_trajectory_at_t(t, self.N + 1, self.traj_velocity)
+        self.target_traj = self.rg.get_full_trajectory_at_t(t, self.N + 1, self.traj_velocity)
         rel_pos = self.get_relative_pos()
         self.x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13 + 3, 1))
         if self.x_traj is None:
@@ -360,14 +360,15 @@ class DistributedMPC(object):
 
         online_data = np.repeat(self.bearings, self.N + 1, axis=1)
         qd_rep = np.repeat(self.qd, self.N + 1, axis=1)
+        wd_rep = np.repeat(np.zeros((3, 1)), self.N + 1, axis=1)
         if DEBUG:
             print("Bearings repeated shape: ", online_data.shape)
-            print("Velocity shape: ", self.target_vel.shape)
+            print("Velocity shape: ", self.target_traj.shape)
 
-        self.online_data = np.concatenate((online_data, qd_rep, self.target_vel), axis=0)
+        self.online_data = np.concatenate((online_data, self.target_traj, qd_rep, wd_rep), axis=0)
 
         if DEBUG:
-            print("Target Velocity: ", self.target_vel.shape)
+            print("Target Velocity: ", self.target_traj.shape)
             print("Neighour position: ", rel_pos.shape)
             print("State dims: ", self.state.shape)
             print("rel_pos dims: ", rel_pos.shape)
@@ -448,9 +449,9 @@ class DistributedMPC(object):
         v.leader_velocity.linear.y = self.state[4]
         v.leader_velocity.linear.z = self.state[5]
 
-        v.leader_target.linear.x = self.target_vel[0, 0]
-        v.leader_target.linear.y = self.target_vel[1, 0]
-        v.leader_target.linear.z = self.target_vel[2, 0]
+        v.leader_target.linear.x = self.target_traj[3, 0]
+        v.leader_target.linear.y = self.target_traj[4, 0]
+        v.leader_target.linear.z = self.target_traj[5, 0]
 
         # Pack message as GS Data message
         gs_data = ff_msgs.msg.GuestScienceData()

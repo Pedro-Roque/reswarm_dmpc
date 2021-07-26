@@ -363,9 +363,9 @@ class UnitTestsMPC(object):
             elif t < 6 * self.test_time:
                 xd = np.array([self.test_targets['t']['t6']]).reshape((self.Nx, 1))
             elif t < 7 * self.test_time:
-                xd = np.array([self.test_targets['t']['t6']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['t']['t7']]).reshape((self.Nx, 1))
             else:
-                xd = np.array([self.test_targets['t']['t6']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['t']['t7']]).reshape((self.Nx, 1))
 
         elif self.test_num == 2:
             # Translation Unit Tests:
@@ -382,9 +382,9 @@ class UnitTestsMPC(object):
             elif t < 6 * self.test_time:
                 xd = np.array([self.test_targets['q']['t6']]).reshape((self.Nx, 1))
             elif t < 7 * self.test_time:
-                xd = np.array([self.test_targets['q']['t6']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['q']['t7']]).reshape((self.Nx, 1))
             else:
-                xd = np.array([self.test_targets['q']['t6']]).reshape((self.Nx, 1))
+                xd = np.array([self.test_targets['q']['t7']]).reshape((self.Nx, 1))
 
         return xd
 

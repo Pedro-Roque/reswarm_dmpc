@@ -19,7 +19,7 @@ epsilon = 0.00001;
 
 %% Problem setup
 DifferentialState p1(3) v1(3) q1(4) w1(3) relPos(3*followers)
-OnlineData relPosD(3*followers) pD(3) vD(3) qD(4) wD(3)
+OnlineData relPosD(3*followers) qD(4) vD(3)
 
 Control u1(6)                                            
 
@@ -33,8 +33,8 @@ err_ang = @(R,Rd) (invskew(Rd'*R - R'*Rd)/(2*sqrt(1+tr(Rd'*R))));
 
 %% Cost function
 n = followers;
-W_mat = eye(3*n+3+3+3+3+6); 
-WN_mat = eye(3*n+3+3+3+3); 
+W_mat = eye(3*n+3+3+6); 
+WN_mat = eye(3*n+3+3); 
 W = acado.BMatrix(W_mat);
 WN = acado.BMatrix(WN_mat);
 
@@ -42,11 +42,9 @@ R1 = Rq(q1);
 RD = Rq(qD);
 
 J1 = [relPos - relPosD; ...
-      p1 - pD;
       v1 - vD; ...  
-      err_ang(R1,RD); 
-      w1 - wD; ...
-      u1]; % dim 4    TOTAL: 3*n + 3 + 3 + 3 + 3 + 6 = 21
+      err_ang(R1,RD); ...
+      u1]; % dim 4    TOTAL: 3*n + 3 + 3 + 6 = 13
                             
 %% Dynamics Agent 1
 qx = q1(1); qy = q1(2); qz = q1(3); qw = q1(4);
@@ -87,7 +85,7 @@ ocp.subjectTo( u13 == 0.0);
 ocp.subjectTo( u14 == 0.0); 
 ocp.subjectTo( u15 == 0.0); 
 ocp.subjectTo( -0.3*moment_arm <= u16 <= 0.3*moment_arm); 
-ocp.subjectTo( -V_MAX <= v1 <= V_MAX );  
+ocp.subjectTo( -V_MAX <= v1 <= V_MAX ); 
  
 mpc = acado.OCPexport( ocp );
 mpc.set( 'HESSIAN_APPROXIMATION',       'GAUSS_NEWTON'      ); % GAUSS_NEWTON
