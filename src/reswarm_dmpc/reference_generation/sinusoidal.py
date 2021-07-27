@@ -119,7 +119,7 @@ class SinusoidalReference(object):
 
         return self.full_trajectory[3:6, :]
 
-    def get_full_trajectory_at_t(self, t, points, vel_prf):
+    def get_full_trajectory_at_t(self, t0, points, vel_prf, x0=None):
         """
         Create trajectory starting at time t with the specified
         number of points
@@ -132,7 +132,7 @@ class SinusoidalReference(object):
         :rtype: np.ndarray
         """
 
-        t = np.linspace(t, (points - 1) * self.dt + t, points)
+        t = np.linspace(t0, (points - 1) * self.dt + t0, points)
         vx = vel_prf[0] * np.cos(2 * np.pi * self.f * t)
         vy = vel_prf[1] * np.ones(points)
         vz = vel_prf[2] * np.sin(2 * np.pi * self.f * t)
@@ -140,13 +140,14 @@ class SinusoidalReference(object):
         # Once we have a velocity profile, we can create the
         # position references
         x = np.array([self.x0])
-        y = np.array([self.y0])
+        y = np.array([self.y0]) + vel_prf[1] * t0
         z = np.array([self.z0])
 
         for i in range(points - 1):
             x = np.append(x, x[-1] + vx[i] * self.dt)
             y = np.append(y, y[-1] + vy[i] * self.dt)
             z = np.append(z, z[-1] + vz[i] * self.dt)
+
         # Create trajectory matrix
         x_sp = np.array([x])
         x_sp = np.append(x_sp, [y], axis=0)

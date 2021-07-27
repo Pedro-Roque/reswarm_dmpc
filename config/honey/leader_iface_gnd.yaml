@@ -1,3 +1,4 @@
+test_time: 60.0
 expiration_time: 120.0
 # Weights - relative position (3d), p_e(3d), v_e(3d), q_e(3d), w_e(3d), u(6)
 W: [0.05, 0.05, 0.05, 10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100, 5, 5, 5, 1, 1, 1]
@@ -7,5 +8,7 @@ WN_gain: 200
 bearings:
   f1: [-1.0, 0.0, 0.0]
 traj_start: [0.5, -0.5, -0.76]
-traj_velocity: [0.03, 0.02, 0.0]
+traj_velocity: 
+  t1: [0.0, 0.02, 0.0]
+  t2: [0.03, 0.02, 0.0]
 qd: [0, 0, 0, 1]

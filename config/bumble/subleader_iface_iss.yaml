@@ -1,7 +1,7 @@
 expiration_time: 240.0
 # Weights - relative position leader (3d), relative position follower (3d), velocity error (3d), att error(3d)
-W: [10, 10, 10, 0.05, 0.05, 0.05, 10, 10, 10, 10, 10, 10, 50, 50, 50, 10, 10, 10]
-WN: [10, 10, 10, 0.05, 0.05, 0.05, 10, 10, 10, 10, 10, 10]
+W: [200, 200, 200, 0.05, 0.05, 0.05, 10, 10, 10, 10, 10, 10, 50, 50, 50, 50, 50, 50]
+WN: [200, 200, 200, 0.05, 0.05, 0.05, 10, 10, 10, 10, 10, 10]
 WN_gain: 200
 # Test Targets
 bearings:

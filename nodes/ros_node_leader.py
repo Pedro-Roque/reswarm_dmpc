@@ -50,11 +50,11 @@ class DistributedMPC(object):
         self.pose = None
 
         # Collect parameters
+        self.test_time = rospy.get_param("test_time")
         self.expiration_time = rospy.get_param("expiration_time")
         rg_start = rospy.get_param("traj_start")
         self.rg_start = np.array([rg_start]).reshape((3, 1))
-        traj_velocity = rospy.get_param("traj_velocity")
-        self.traj_velocity = np.array([traj_velocity]).reshape((3, 1))
+        self.traj_velocity = rospy.get_param("traj_velocity")
         bearings = rospy.get_param("bearings")
         self.bearings = np.array([bearings['f1']]).reshape((3, 1))
         qd = rospy.get_param("qd")
@@ -333,6 +333,20 @@ class DistributedMPC(object):
         rel_pos = np.dot(rmat, self.state[0:3] - self.f1_position)
         return rel_pos
 
+    def get_trajectory(self, t):
+
+        if t < self.test_time:
+            vel_profile = np.array([self.traj_velocity['t1']]).reshape((3, ))
+        elif t < 2 * self.test_time:
+            vel_profile = np.array([self.traj_velocity['t2']]).reshape((3, ))
+        else:
+            vel_profile = np.array([self.traj_velocity['t1']]).reshape((3, ))
+
+        # Velocity check
+        print("Velocity: ", vel_profile)
+        target_traj = self.rg.get_full_trajectory_at_t(t, self.N + 1, vel_profile)
+        return target_traj
+
     def prepare_request(self, t):
         """
         Helper function to prepare the control request.
@@ -349,7 +363,7 @@ class DistributedMPC(object):
             return val, 0
 
         # Valid data, so we proceed
-        self.target_traj = self.rg.get_full_trajectory_at_t(t, self.N + 1, self.traj_velocity)
+        self.target_traj = self.get_trajectory(t)
         rel_pos = self.get_relative_pos()
         self.x0 = np.concatenate((self.state, rel_pos), axis=0).reshape((13 + 3, 1))
         if self.x_traj is None:
