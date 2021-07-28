@@ -340,10 +340,9 @@ class DistributedMPC(object):
         elif t < 2 * self.test_time:
             vel_profile = np.array([self.traj_velocity['t2']]).reshape((3, ))
         else:
-            vel_profile = np.array([self.traj_velocity['t1']]).reshape((3, ))
+            vel_profile = np.array([self.traj_velocity['t2']]).reshape((3, ))
 
         # Velocity check
-        print("Velocity: ", vel_profile)
         target_traj = self.rg.get_full_trajectory_at_t(t, self.N + 1, vel_profile)
         return target_traj
 

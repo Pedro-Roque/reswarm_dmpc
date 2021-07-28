@@ -21,7 +21,8 @@ DifferentialState p1(3) v1(3) q1(4) w1(3) relPos(3+3*num_followers)         % po
 OnlineData relPosD(3+3*num_followers) ...                   % desired relative position
            qD(4)      ... 
            vD(3)      ...
-           vL(3)      
+           vL(3)      ...
+           wD(3)
 Control u1(6)                                                 % force (2), torque(1)
 
 %% Functions         
@@ -33,8 +34,8 @@ invskew = @(R) [R(3,2); R(1,3); R(2,1)];
 err_ang = @(R,Rd) (invskew(Rd'*R - R'*Rd)/(2*sqrt(1+tr(Rd'*R))));
 
 %% Cost function
-W_mat = eye(3+3*num_followers + 3 + 3 + 6); 
-WN_mat = eye(3+3*num_followers + 3 + 3); 
+W_mat = eye(3+3*num_followers + 3 + 3 + 3 + 6); 
+WN_mat = eye(3+3*num_followers + 3 + 3 + 3); 
 W = acado.BMatrix(W_mat);
 WN = acado.BMatrix(WN_mat);
 
@@ -44,6 +45,7 @@ RD = Rq(qD);
 J1 = [relPos - relPosD; ...
       v1 - vD; ...  
       err_ang(R1,RD); ...
+      w1 - wD; ...
       u1]; % dim 6    TOTAL: 3*num_followers + 3 + 3 + 6 = 15
                             
 %% Dynamics Agent 1

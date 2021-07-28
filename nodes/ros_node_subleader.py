@@ -14,7 +14,7 @@ import reswarm_msgs.msg
 import ff_msgs.msg
 import ff_msgs.srv
 
-DEBUG = False
+DEBUG = True
 OVERRIDE_TS = False
 AGENTS = 2
 
@@ -325,8 +325,8 @@ class DistributedMPC(object):
         Function to set the controller weights.
         """
 
-        self.weights_size = 3 + 3 * 1 + 3 + 3 + 6
-        self.weights_size_N = 3 + 3 * 1 + 3 + 3
+        self.weights_size = 3 + 3 * 1 + 3 + 3 + 3 + 6
+        self.weights_size_N = 3 + 3 * 1 + 3 + 3 + 3
 
         ln_weights = rospy.get_param("W")
         V_weights = rospy.get_param("WN")
@@ -432,11 +432,11 @@ class DistributedMPC(object):
             self.u_traj = np.repeat(np.zeros((1, 6)), self.N, axis=0)
 
         # Fill online data array
-        online_data = np.concatenate((self.bearings, self.qd, self.information_vec), axis=0)
+        online_data = np.concatenate((self.bearings, self.qd, self.information_vec, np.zeros((3,))), axis=0)
         if DEBUG:
             print("Bearings repeated shape: ", online_data.shape)
 
-        self.online_data = np.repeat(online_data.reshape((16, 1)), self.N + 1, axis=1)
+        self.online_data = np.repeat(online_data.reshape((19, 1)), self.N + 1, axis=1)
 
         if DEBUG:
             print("X0 data: ", self.x0.ravel(order="F").tolist())
