@@ -6,6 +6,8 @@ import rospy
 
 from reswarm_dmpc.reference_generation.sinusoidal import SinusoidalReference
 from reswarm_dmpc.util_iss import *
+# BACKUP IN CASE OF FAILED PYTHON PATH FOR SINUSOIDAL REFERENCE SOURCE
+# from reswarm_dmpc.sinusoidal import SinusoidalReference
 
 import std_srvs.srv
 import reswarm_dmpc.srv
