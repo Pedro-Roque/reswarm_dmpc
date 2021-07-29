@@ -14,7 +14,7 @@ import reswarm_msgs.msg
 import ff_msgs.msg
 import ff_msgs.srv
 
-DEBUG = True
+DEBUG = False
 OVERRIDE_TS = False
 AGENTS = 2
 
