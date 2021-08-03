@@ -17,6 +17,7 @@ import ff_msgs.srv
 DEBUG = False
 OVERRIDE_TS = False
 AGENTS = 2
+CONTROL_HANDOVER_DELAY = 10
 
 
 class DistributedMPC(object):
@@ -34,6 +35,7 @@ class DistributedMPC(object):
         self.rate = rospy.Rate(1.0 / self.dt)
         self.start = False
         self.test_finished = False
+        self.obc_state = True
         # Solver Status
         self.solver_status = -1
         self.solver_cost_value = -1
@@ -211,19 +213,11 @@ class DistributedMPC(object):
         if state:
             ans.success = True
             ans.message = "Node started!"
-            # Disable onboard controller
-            obc = std_srvs.srv.SetBoolRequest()
-            obc.data = False
-            self.onboard_ctl(obc)
             self.start = True
             self.t0 = rospy.get_time()
         else:
             ans.success = True
             ans.message = "Node stopped!"
-            # Enable onboard controller
-            obc = std_srvs.srv.SetBoolRequest()
-            obc.data = True
-            self.onboard_ctl(obc)
             self.start = False
 
         return ans
@@ -659,12 +653,23 @@ class DistributedMPC(object):
 
             t = rospy.get_time() - self.t0
             rospy.logwarn("[SL] Time since epoch: " + str(t) + " - Expiraton time: " + str(self.expiration_time))
-            if t > self.expiration_time:
+            if t > self.expiration_time and self.obc_state is False:
                 rospy.loginfo("Finished!")
                 self.test_finished = True
                 self.publish_test_status()
+                obc = std_srvs.srv.SetBoolRequest()
+                self.obc_state = True
+                obc.data = self.obc_state
+                self.onboard_ctl(obc)
                 self.rate.sleep()
                 continue
+
+            if t > CONTROL_HANDOVER_DELAY and self.obc_state is True:
+                # Disable onboard controller
+                obc = std_srvs.srv.SetBoolRequest()
+                self.obc_state = False
+                obc.data = self.obc_state
+                self.onboard_ctl(obc)
 
             rospy.loginfo("Looping!")
             # Use self.pose, self.twist to generate a control input

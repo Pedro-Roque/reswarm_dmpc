@@ -16,6 +16,7 @@ import ff_msgs.srv
 
 DEBUG = False
 OVERRIDE_TS = False
+CONTROL_HANDOVER_DELAY = 10
 
 
 class UnitTestsMPC(object):
@@ -33,6 +34,7 @@ class UnitTestsMPC(object):
         self.rate = rospy.Rate(1.0 / self.dt)
         self.start = False
         self.test_finished = False
+        self.obc_state = True
         # Solver Status
         self.solver_status = -1
         self.solver_cost_value = -1
@@ -176,18 +178,10 @@ class UnitTestsMPC(object):
             ans.success = True
             ans.message = "Node started!"
             self.t0 = rospy.get_time()
-            # Disable onboard controller
-            obc = std_srvs.srv.SetBoolRequest()
-            obc.data = False
-            self.onboard_ctl(obc)
             self.start = True
         else:
             ans.success = True
             ans.message = "Node stopped!"
-            # Enable onboard controller
-            obc = std_srvs.srv.SetBoolRequest()
-            obc.data = True
-            self.onboard_ctl(obc)
             self.start = False
 
         return ans
@@ -642,11 +636,22 @@ class UnitTestsMPC(object):
                 self.t0 = rospy.get_time()
                 continue
 
-            if t > self.expiration_time:
+            if t > self.expiration_time and self.obc_state is False:
                 self.test_finished = True
                 rospy.loginfo(nh_name + "Finished!")
+                obc = std_srvs.srv.SetBoolRequest()
+                self.obc_state = True
+                obc.data = self.obc_state
+                self.onboard_ctl(obc)
                 self.rate.sleep()
                 continue
+
+            if t > CONTROL_HANDOVER_DELAY and self.obc_state is True:
+                # Disable onboard controller
+                obc = std_srvs.srv.SetBoolRequest()
+                self.obc_state = False
+                obc.data = self.obc_state
+                self.onboard_ctl(obc)
 
             # Use self.pose, self.twist to generate a control input
             val, req = self.prepare_request(t)
