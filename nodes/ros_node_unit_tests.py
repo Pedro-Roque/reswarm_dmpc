@@ -146,7 +146,6 @@ class UnitTestsMPC(object):
         :type msg: reswarm_dmpc.msg.InformationStamped
         """
 
-        self.info_ts = rospy.get_time()
         self.information_vec = np.zeros((6,))
 
         # De-serialize data
@@ -154,14 +153,15 @@ class UnitTestsMPC(object):
         info_msg.deserialize(msg.data)
 
         # Information vector contains: [vD; vL]
-        self.information_vec[0] = info_msg.leader_target.linear.x
-        self.information_vec[1] = info_msg.leader_target.linear.y
-        self.information_vec[2] = info_msg.leader_target.linear.z
+        if msg.topic == "InformationStamped":
+            self.information_vec[0] = info_msg.leader_target.linear.x
+            self.information_vec[1] = info_msg.leader_target.linear.y
+            self.information_vec[2] = info_msg.leader_target.linear.z
 
-        self.information_vec[3] = info_msg.leader_velocity.linear.x
-        self.information_vec[4] = info_msg.leader_velocity.linear.y
-        self.information_vec[5] = info_msg.leader_velocity.linear.z
-        pass
+            self.information_vec[3] = info_msg.leader_velocity.linear.x
+            self.information_vec[4] = info_msg.leader_velocity.linear.y
+            self.information_vec[5] = info_msg.leader_velocity.linear.z
+            self.info_ts = rospy.get_time()
 
     def start_srv_callback(self, req=std_srvs.srv.SetBoolRequest()):
         """
@@ -646,18 +646,18 @@ class UnitTestsMPC(object):
                 self.rate.sleep()
                 continue
 
-            if t > CONTROL_HANDOVER_DELAY and self.obc_state is True:
-                # Disable onboard controller
-                obc = std_srvs.srv.SetBoolRequest()
-                self.obc_state = False
-                obc.data = self.obc_state
-                self.onboard_ctl(obc)
-
             # Use self.pose, self.twist to generate a control input
             val, req = self.prepare_request(t)
             if val is False:
                 self.rate.sleep()
                 continue
+
+            if t > CONTROL_HANDOVER_DELAY and t < self.expiration_time and self.obc_state is True:
+                # Disable onboard controller
+                obc = std_srvs.srv.SetBoolRequest()
+                self.obc_state = False
+                obc.data = self.obc_state
+                self.onboard_ctl(obc)
 
             rospy.loginfo(nh_name + "Looping!")
 
