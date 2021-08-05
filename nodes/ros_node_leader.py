@@ -625,18 +625,18 @@ class DistributedMPC(object):
                 self.rate.sleep()
                 continue
 
+            rospy.loginfo("Looping!")
+            val, req = self.prepare_request(t)
+            if val is False:
+                self.rate.sleep()
+                continue
+
             if t > CONTROL_HANDOVER_DELAY and self.obc_state is True:
                 # Disable onboard controller
                 obc = std_srvs.srv.SetBoolRequest()
                 self.obc_state = False
                 obc.data = self.obc_state
                 self.onboard_ctl(obc)
-
-            rospy.loginfo("Looping!")
-            val, req = self.prepare_request(t)
-            if val is False:
-                self.rate.sleep()
-                continue
 
             # Start the RTI Loop
             tin = rospy.get_time()
