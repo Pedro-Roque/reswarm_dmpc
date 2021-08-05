@@ -682,7 +682,7 @@ class DistributedMPC(object):
             tin = rospy.get_time()
             temp_kkt = Inf
             tries = 0
-            while (temp_kkt > 100 and tries < 10) or np.isnan(temp_kkt):
+            while (temp_kkt > 100 or np.isnan(temp_kkt)) and tries < 10:
                 rospy.loginfo("[RTI Loop] Trial: " + str(tries))
                 ans = self.get_control(req)
                 temp_kkt = ans.kkt_value
