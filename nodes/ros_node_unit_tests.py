@@ -16,7 +16,7 @@ import ff_msgs.srv
 
 DEBUG = False
 OVERRIDE_TS = False
-CONTROL_HANDOVER_DELAY = 10
+CONTROL_HANDOVER_DELAY = 0.5
 
 
 class UnitTestsMPC(object):

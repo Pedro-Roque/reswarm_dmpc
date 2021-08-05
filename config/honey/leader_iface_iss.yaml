@@ -7,7 +7,7 @@ WN_gain: 200
 # Test Targets
 bearings:
   f1: [-1.0, 0.0, 0.0]
-traj_start: [11.0, -8.0, 4.5]
+traj_start: [10.6, -8.0, 4.5]
 traj_velocity: 
   t1: [0, -0.01, 0]
   t2: [0.06, -0.005, 0.06]
