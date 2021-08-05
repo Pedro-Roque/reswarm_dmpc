@@ -39,6 +39,7 @@ class DistributedMPC(object):
         self.start = False
         self.test_finished = False
         self.obc_state = True
+        self.starting_sinusoid = False
         # Solver Status
         self.solver_status = -1
         self.solver_cost_value = -1
@@ -331,11 +332,22 @@ class DistributedMPC(object):
 
     def get_trajectory(self, t):
 
-        if t < self.test_time:
+        if 't1' in self.traj_velocity and 't2' in self.traj_velocity:
+            if t < self.test_time:
+                vel_profile = np.array([self.traj_velocity['t1']]).reshape((3, ))
+            elif t < 2 * self.test_time:
+                if self.starting_sinusoid is False:
+                    self.rg = SinusoidalReference(self.dt, self.state[0:3].reshape((3, 1)), A=0.1,
+                                                  time_span=45)
+                    self.starting_sinusoid = True
+                vel_profile = np.array([self.traj_velocity['t2']]).reshape((3, ))
+            else:
+                vel_profile = np.array([self.traj_velocity['t2']]).reshape((3, ))
+
+        elif 't1' in self.traj_velocity:
             vel_profile = np.array([self.traj_velocity['t1']]).reshape((3, ))
-        elif t < 2 * self.test_time:
-            vel_profile = np.array([self.traj_velocity['t2']]).reshape((3, ))
-        else:
+
+        elif 't2' in self.traj_velocity:
             vel_profile = np.array([self.traj_velocity['t2']]).reshape((3, ))
 
         # Velocity check
