@@ -2,7 +2,7 @@
 <launch>
     <arg name="nspace" default="/"/>
     <arg name="ground" default="false"/>
-    <arg name="partner" default="honey"/>
+    <arg name="partner" default="queen"/>
     <arg name="param" default="3"/>
 
     <group ns="$(arg nspace)">

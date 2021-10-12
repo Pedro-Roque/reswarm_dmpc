@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <arg name="nspace" default="/"/>
-    <arg name="partner" default="honey"/>
+    <arg name="partner" default="queen"/>
     <arg name="ground" default="false"/>
     <arg name="param" default="1"/>
     
