@@ -1,6 +1,7 @@
 test_time: 30.0
 expiration_time: 90.0
-# Weights - relative position (3d), p_e(3d), v_e(3d), q_e(3d), w_e(3d), u(6)
+# WEIGHTS: 
+# Rel. Pos. Error (3d),  Des. Pos (3d), Des. Vel. (3d), Des. Att (3d), Des. Ang. Vel (3d), Input (6d)
 W: [0.05, 0.05, 0.05, 10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100, 5, 5, 5, 1, 1, 1]
 WN: [0.05, 0.05, 0.05, 10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100]
 WN_gain: 200
