@@ -1,0 +1,11 @@
+expiration_time: 60.0
+# WEIGHTS: 
+# relative position leader (3d), relative position follower (3d), velocity error (3d), att error(3d), ang. vel. error (3d)
+W: [200, 200, 200, 10, 10, 10, 10, 10, 10, 10, 10, 10, 100, 100, 100, 25, 25, 25, 50, 50, 50]
+WN: [200, 200, 200, 10, 10, 10, 10, 10, 10, 10, 10, 10, 100, 100, 100]
+WN_gain: 200
+# Test Targets
+bearings:
+  l: [0.0, -0.8, 0.0]
+  f1: [-1.0, 0.0, 0.0]
+qd: [0.707,  -0.707, 0, 0]
