@@ -3,6 +3,7 @@ from io import BytesIO as StringIO
 import numpy as np
 from numpy.core.numeric import Inf
 import rospy
+import multiprocessing as mp
 
 from reswarm_dmpc.util_iss import *
 
@@ -84,6 +85,13 @@ class DistributedMPC(object):
         self.set_services()
         self.set_subscribers_publishers()
 
+        # Control input thread
+        self.thread_status = False
+        u = np.array([0, 0, 0, 0, 0, 0])
+        self.data_for_thread = mp.Queue()
+        self.data_for_thread.put(u)
+        self.p = mp.Process(target=self.thread_cb, args=(self.data_for_thread,))
+
         # Change onboard timeout
         new_timeout = ff_msgs.srv.SetFloatRequest()
         new_timeout.data = 1.5
@@ -107,6 +115,27 @@ class DistributedMPC(object):
     # ---------------------------------
     # BEGIN: Callbacks Section
     # ---------------------------------
+    def thread_cb(self, input):
+        """
+        Thread to publish control inputs at 62.5 Hz
+
+        :param input: multiprocessing queue with control inputs
+        :type input: mp.Queue
+        """
+        u = input.get()
+        prev_u = u
+        th_rate = rospy.Rate(62.5)
+        while not rospy.is_shutdown():
+            if input.empty():
+                um = self.create_control_message(prev_u)
+                self.control_pub.publish(um)
+            else:
+                u = input.get()
+                prev_u = u
+                um = self.create_control_message(u)
+                self.control_pub.publish(um)
+            th_rate.sleep()
+
     def pose_sub_cb(self, msg=geometry_msgs.msg.PoseStamped()):
         """
         Pose callback to update the agent's position and attitude.
@@ -460,7 +489,7 @@ class DistributedMPC(object):
         val = True
         return val, srv
 
-    def create_control_message(self):
+    def create_control_message(self, u):
         """
         Helper function to create the control message to be published
 
@@ -476,12 +505,12 @@ class DistributedMPC(object):
         u.header.stamp = rospy.Time.now()
 
         # Fill force / torque messages
-        u.wrench.force.x = self.u_traj[0]
-        u.wrench.force.y = self.u_traj[1]
-        u.wrench.force.z = self.u_traj[2]
-        u.wrench.torque.x = self.u_traj[3]
-        u.wrench.torque.y = self.u_traj[4]
-        u.wrench.torque.z = self.u_traj[5]
+        u.wrench.force.x = u[0]
+        u.wrench.force.y = u[1]
+        u.wrench.force.z = u[2]
+        u.wrench.torque.x = u[3]
+        u.wrench.torque.y = u[4]
+        u.wrench.torque.z = u[5]
 
         # Set control mode and status
         u.status = 3
@@ -644,12 +673,20 @@ class DistributedMPC(object):
             # Publish Status
             self.publish_test_status()
 
+            if self.start is False and self.thread_status is True:
+                self.p.terminate()
+                self.thread_status = False
+
             # Only do something when started
             if self.start is False:
                 self.rate.sleep()
                 rospy.loginfo("Sleeping...")
                 self.t0 = rospy.get_time()
                 continue
+
+            if self.start is True and self.thread_status is False:
+                self.p.start()
+                self.thread_status = True
 
             t = rospy.get_time() - self.t0
             rospy.logwarn("[SL] Time since epoch: " + str(t) + " - Expiraton time: " + str(self.expiration_time))
@@ -661,6 +698,9 @@ class DistributedMPC(object):
                 self.obc_state = True
                 obc.data = self.obc_state
                 self.onboard_ctl(obc)
+                if self.thread_status is True:
+                    self.p.terminate()
+                    self.thread_status = False
                 self.rate.sleep()
                 continue
 
@@ -720,12 +760,12 @@ class DistributedMPC(object):
             self.acado_out_predicted_input = self.u_traj.ravel(order="F").tolist()
 
             # Create control input message
-            u = self.create_control_message()
             gs_data = self.create_broadcast_message()
             fm = self.create_flight_mode_message()
+            u = np.array([self.u_traj[0], self.u_traj[1], self.u_traj[2], self.u_traj[3], self.u_traj[4], self.u_traj[5]])
+            self.data_for_thread.put(u)
 
             # Publish control
-            self.control_pub.publish(u)
             self.broadcast_pub.publish(gs_data)
             self.flight_mode_pub.publish(fm)
             self.publish_acado_status()
