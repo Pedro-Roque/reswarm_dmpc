@@ -466,7 +466,7 @@ class UnitTestsMPC(object):
         val = True
         return val, srv
 
-    def create_control_message(self, u):
+    def create_control_message(self, u_vec):
         """
         Helper function to create the control message to be published
 
@@ -482,12 +482,12 @@ class UnitTestsMPC(object):
         u.header.stamp = rospy.Time.now()
 
         # Fill force / torque messages
-        u.wrench.force.x = u[0]
-        u.wrench.force.y = u[1]
-        u.wrench.force.z = u[2]
-        u.wrench.torque.x = u[3]
-        u.wrench.torque.y = u[4]
-        u.wrench.torque.z = u[5]
+        u.wrench.force.x = u_vec[0]
+        u.wrench.force.y = u_vec[1]
+        u.wrench.force.z = u_vec[2]
+        u.wrench.torque.x = u_vec[3]
+        u.wrench.torque.y = u_vec[4]
+        u.wrench.torque.z = u_vec[5]
 
         # Set control mode and status
         u.status = 3
