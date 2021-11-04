@@ -13,7 +13,6 @@ from reswarm_dmpc.sinusoidal import SinusoidalReference
 import std_srvs.srv
 import reswarm_dmpc.srv
 import reswarm_dmpc.msg
-import reswarm_msgs.msg
 import ff_msgs.msg
 import ff_msgs.srv
 
