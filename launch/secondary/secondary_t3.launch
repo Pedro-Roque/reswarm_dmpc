@@ -23,7 +23,7 @@
             <remap from="~local_leader_pose" to="$(arg partner)/gnc/ekf"/>
             <remap from="~follower_pose" to="queen/gnc/ekf"/>
             <remap from="~leader_information" to="$(arg partner)/gs/data"/>
-            <remap from="~control_topic" to="gnc/ctl/command"/>
+            <remap from="~control_topic" to="dmpc/ctl/command"/>
             <remap from="~broadcast_information" to="gs/data"/>
             <remap from="~flight_mode" to="mob/flight_mode"/>
             <remap from="~solver_status" to="reswarm/acado_status"/>
@@ -46,6 +46,12 @@
             <remap from="get_control_srv" to="get_control"/>
             <remap from="set_weights_srv" to="set_weights"/>
             <remap from="kill_node_srv" to="kill"/>
+        </node>
+        <!-- repeater node - ensure 100Hz control input -->
+        <node pkg="reswarm_dmpc" type="repeater.py" name="secondary_repeater" output="screen">
+            <remap from="~low_rate_ctl_topic" to="dmpc/ctl/command"/>
+            <remap from="~high_rate_ctl_topic" to="gnc/ctl/command"/>
+            <remap from="~flight_mode" to="mob/flight_mode"/>
         </node>
     </group>
 </launch>
