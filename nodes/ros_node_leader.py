@@ -4,6 +4,7 @@ import numpy as np
 from numpy.core.numeric import Inf
 import rospy
 import multiprocessing as mp
+import time
 
 # from reswarm_dmpc.reference_generation.sinusoidal import SinusoidalReference
 from reswarm_dmpc.util_iss import *
@@ -128,17 +129,19 @@ class DistributedMPC(object):
         """
         u = input.get()
         prev_u = u
-        th_rate = rospy.Rate(62.5)
         while not rospy.is_shutdown():
             if input.empty():
                 um = self.create_control_message(prev_u)
                 self.control_pub.publish(um)
+                rospy.logwarn("Am I publish? :O")
             else:
                 u = input.get()
                 prev_u = u
                 um = self.create_control_message(u)
                 self.control_pub.publish(um)
-            th_rate.sleep()
+                rospy.logwarn("Can I publish? :O")
+            rospy.logwarn("I'm a thread and I'm happy!")
+            time.sleep(0.01)
 
     def state_sub_cb(self, msg=ff_msgs.msg.EkfState()):
         """
