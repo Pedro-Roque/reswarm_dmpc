@@ -4,7 +4,7 @@ expiration_time: 60.0
 # Rel. Pos. Error (3d),  Des. Pos (3d), Des. Vel. (3d), Des. Att (3d), Des. Ang. Vel (3d), Input (6d)
 W: [10, 10, 10, 10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100, 25, 25, 25, 50, 50, 50]
 WN: [10, 10, 10, 10, 10, 10, 100, 100, 100, 10, 10, 10, 100, 100, 100]
-WN_gain: 200  
+WN_gain: 200
 # Test Targets
 bearings:
   f1: [-1.0, 0.0, 0.0]
