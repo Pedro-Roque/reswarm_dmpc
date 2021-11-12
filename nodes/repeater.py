@@ -3,7 +3,7 @@ import numpy as np
 from numpy.core.numeric import Inf
 import rospy
 
-from reswarm_dmpc.util import *
+from reswarm_dmpc.util_iss import *
 
 import ff_msgs.msg
 import ff_msgs.srv
