@@ -17,7 +17,7 @@ import ff_msgs.srv
 DEBUG = False
 OVERRIDE_TS = False
 AGENTS = 2
-CONTROL_HANDOVER_DELAY = 2
+CONTROL_HANDOVER_DELAY = 10
 
 
 class DistributedMPC(object):
