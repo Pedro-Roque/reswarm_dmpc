@@ -15,13 +15,13 @@ traj_velocity_2 = {'t2': [0.02, 0.01, 0.0]}
 traj_velocity_3 = {'t1': [0.0, 0.01, 0.0]}
 
 wr_l = [5, 20, 100]
-wp_l = [10, 100]
+wp_l = [10, 25, 50]
 wv_l = [10, 100]
 wa_l = [10, 100]
 ww_l = [10, 100]
 
-wf_l = [5, 25, 50]
-wt_l = [5, 25, 50]
+wf_l = [12.5, 25, 50]
+wt_l = [12.5, 25, 50]
 
 for profile in traj_profiles:
     print("Test: ", profile)

@@ -25,8 +25,8 @@ wv_l = [10, 100]
 wa_l = [10, 100]
 ww_l = [10, 100]
 
-wf_l = [5, 25, 50]
-wt_l = [5, 25, 50]
+wf_l = [12.5, 25, 50]
+wt_l = [12.5, 25, 50]
 
 for test in test_list:
     print("Test: ", test)
