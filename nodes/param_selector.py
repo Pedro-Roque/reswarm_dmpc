@@ -10,8 +10,8 @@ test_type = 'fc'
 # Select profile type:
 # Ut: [p, v, q, w, f, t]   , p,v,q,w = 0,1 , f,t = 0,1,2
 # Fc: [rl, rf, v, q, w, f, t]   , v,q,w = 0,1 , rl,rf,f,t = 0,1,2
-profile = [1, 0, 1, 0, 2, 2]
-profile_fc = [2, 2, 1, 0, 1, 2, 2]
+profile = [0, 1, 0, 1, 1, 2]
+profile_fc = [1, 1, 1, 1, 0, 1, 2]
 
 found = False
 if test_type == 'ut':
