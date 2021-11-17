@@ -10,15 +10,15 @@ bearings = {'l': [0.0, -1.0, 0.0], 'f1': [-1.0, 0.0, 0.0]}
 traj_start = [10.75, -8.5, 4.3]
 qd = [0, 0, 0, 1]
 
-wr_l = [5, 20, 100]
-wp_l = [0.05, 0.5, 10]
+wr_l = [5, 20, 100]  # My leader
+wp_l = [0.05, 0.5, 10]  # My follower
 
-wv_l = [10, 100]
-wa_l = [10, 100]
-ww_l = [10, 100]
+wv_l = [40, 100]
+wa_l = [40, 100]
+ww_l = [40, 100]
 
-wf_l = [12.5, 25, 50]
-wt_l = [12.5, 25, 50]
+wf_l = [25, 50, 75]
+wt_l = [25, 50, 75]
 
 for profile in traj_profiles:
     print("Test: ", profile)
